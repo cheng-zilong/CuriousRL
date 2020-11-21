@@ -1,13 +1,18 @@
-from loguru import logger
+from loguru import logger as _logger
 import os
 
-
-def loguru_start(**args):
+def logger_init(**args):
     log_path = os.path.join("logs", args["file_name"], "_result.log")
-    logger_id = logger.add(log_path, format="<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> - {message}")
+    logger_id = _logger.add(log_path, format="<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> - {message}")
     for arg in args:
-        logger.debug("[+] " + arg + ": " +  str(args[arg]))
+        _logger.debug("[+] " + arg + ": " +  str(args[arg]))
     return logger_id
     
-def loguru_end(logger_id):
-    logger.remove(logger_id)
+def logger_destroy(logger_id):
+    _logger.remove(logger_id)
+
+class Logger(object):
+    def debug(self, *args):
+        _logger.debug(args)
+        
+logger = Logger()

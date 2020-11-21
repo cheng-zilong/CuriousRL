@@ -1,19 +1,18 @@
 #%%
 import numpy as np
 import sympy as sp
-import scipy as sci
-import time as tm
 from scipy import io
-import cvxpy as cp
-from numba import njit, jitclass, jit
-import numba
-from loguru import logger
+import time as tm
 import os 
+from numba import njit
+from CuriousRL.utils.Logger import logger
+from ..algo_wrapper import AlgoWrapper
+from .obj_fun import ObjectiveFunctionWrapper
 
-class iLQRWrapper(object):
+class iLQRWrapper(AlgoWrapper):
     """This is a wrapper class for the iLQR iteraton
     """
-    def __init__(self, dynamic_model, obj_fun):
+    def init(self, dynamic_model, obj_fun: ObjectiveFunctionWrapper):
         """ Initialization the iLQR solver class
 
             Parameter
@@ -235,7 +234,7 @@ class iLQRWrapper(object):
     def get_obj_fun_value(self):
         return self.obj_fun_value_last
 
-    def clear_obj_fun_value_last(self):
+    def reset_obj_fun_value_last(self):
         self.obj_fun_value_last = self.init_obj
     
     def solve(self, example_name, max_iter = 100, is_check_stop = True, maximum_line_search = 10):

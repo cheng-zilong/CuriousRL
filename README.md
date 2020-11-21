@@ -36,7 +36,7 @@ example1.learn()
 #只保存一些参数 网络啥的
 algo1 = algorithm("iLQR",obj = obj, .....)
 #真正初始化所有东西
-example1 = Scenario("package_name::envs_name", algo = algo1)
+example1 = Scenario("dynamic::envs_name", algo = algo1)
 example1.learn()
 ```
 
