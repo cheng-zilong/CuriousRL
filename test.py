@@ -1,6 +1,5 @@
 #%%
-from CuriousRL import algorithm, scenario
-from CuriousRL.algorithm.ilqr_solver.basic_ilqr import iLQRWrapper
+from CuriousRL.algorithm import algo
 if __name__ == "__main__":
-    algo1 = algorithm("BasiciLQR")
+    algo1 = algo("BasiciLQR")
 # %%

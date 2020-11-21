@@ -6,14 +6,17 @@ import time as tm
 import os 
 from numba import njit
 from CuriousRL.utils.Logger import logger
-from ..algo_wrapper import AlgoWrapper
-from .obj_fun import ObjectiveFunctionWrapper
+from CuriousRL.algorithm import AlgoWrapper
 
 class iLQRWrapper(AlgoWrapper):
     """This is a wrapper class for the iLQR iteraton
     """
-    def init(self, dynamic_model, obj_fun: ObjectiveFunctionWrapper):
-        """ Initialization the iLQR solver class
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+        
+    def init(self, scenario):
+        """ Initialize the iLQR solver class
 
             Parameter
             -----------
@@ -23,8 +26,8 @@ class iLQRWrapper(AlgoWrapper):
                 The objective function of the iLQR
         """
         # Initialize the functions
-        self.dynamic_model = dynamic_model
-        self.obj_fun = obj_fun
+        self.dynamic_model = scenario
+        self.obj_fun = scenario.obj_fun
         # Parameters for the model
         self.n = dynamic_model.n
         self.m = dynamic_model.m
@@ -267,4 +270,29 @@ class iLQRWrapper(AlgoWrapper):
                 break
         end_time = tm.time()
         logger.debug("[+ +] Completed! All Time:%.5e"%(end_time-start_time))
+
+class BasiciLQR(iLQRWrapper):
+    name = "BasiciLQR"
+    def __init__(self, 
+                max_iter = None, 
+                is_check_stop = None, 
+                stopping_criterion = None,
+                max_line_search = None, 
+                gamma = None):
+        """
+            Parameter
+            -----------
+            max_iter : int
+                Maximum number of iterations
+            is_check_stop : boolean
+                Whether the stopping criterion is checked
+            stopping_criterion : double
+                The stopping criterion
+            max_line_search : int
+                Maximum number of line search
+            gamma : double 
+                Gamma is the parameter for the line search: alpha=gamma*alpha
+
+        """
+        super().__init__(**kwargs)
 #%%iLQR

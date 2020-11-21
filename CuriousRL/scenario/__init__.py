@@ -13,7 +13,7 @@ class ScenarioWrapper(object):
     def play(self):
         pass
 
-def scenario(name: str, **kwargs) -> ScenarioWrapper:
+def scena(name: str, **kwargs) -> ScenarioWrapper:
     package_name, scenario_name = name.split("::")
     if package_name == "Dynamic":
         import DynamicModel
