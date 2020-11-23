@@ -13,22 +13,30 @@ from torch.utils.tensorboard import SummaryWriter
 import os
 from datetime import datetime
 from CuriousRL.utils.Logger import logger
-from CuriousRL.scenario import ScenarioWrapper
-
+from CuriousRL.scenario.scen_wrapper import ScenarioWrapper
 
 class DynamicModelWrapper(ScenarioWrapper):
     """ This is a wrapper class for the dynamic model
     """
+    def with_model(self):
+        return True
+
+    def is_action_discrete(self):
+        return False
+
+    def is_output_image(self):
+        return False
+
     def __init__(self, 
         algo, 
         dynamic_model_function, 
         x_u_var, 
         init_state, 
-        init_input_traj, 
-        T, 
+        init_input_traj,
+        obj_fun, 
+        name,
         add_param_var = None, 
-        add_param = None
-        ):
+        add_param = None):
         """ Initialization
             
             Parameters
@@ -41,25 +49,24 @@ class DynamicModelWrapper(ScenarioWrapper):
                 The initial state vector of the system
             init_input_traj : array(T, m, 1) 
                 The initial input vector
-            T : int
-                The prediction horizon
             add_param_var : tuple with sympy.symbols 
                 Introduce the additional variables that are not derived
             add_param : array(T, -1)
                 Give the values to the additioanl variables
         """
-        super.__init__(algo = algo)
         self.init_state = init_state
         self.init_input_traj = init_input_traj
         self.n = int(init_state.shape[0])
         self.m = int(len(x_u_var) - self.n)
-        self.T = T
+        self.T = int(init_input_traj.shape[0])
         if add_param_var is None:
             add_param_var = sp.symbols("no_use")
         self.dynamic_model_lamdify = njit(sp.lambdify([x_u_var, add_param_var], dynamic_model_function, "math"))
         grad_dynamic_model_function = sp.transpose(sp.derive_by_array(dynamic_model_function, x_u_var))
         self.grad_dynamic_model_lamdify = njit(sp.lambdify([x_u_var, add_param_var], grad_dynamic_model_function, "math"))
         self.add_param = add_param
+        self.obj_fun = obj_fun
+        super().__init__(algo = algo, name = name)
         
     def eval_traj(self, init_state = None, input_traj = None):
         """ Evaluate the system trajectory by given initial states and input vector

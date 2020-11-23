@@ -6,15 +6,46 @@ import time as tm
 import os 
 from numba import njit
 from CuriousRL.utils.Logger import logger
-from CuriousRL.algorithm import AlgoWrapper
+from CuriousRL.algorithm.algo_wrapper import AlgoWrapper
 
 class iLQRWrapper(AlgoWrapper):
     """This is a wrapper class for the iLQR iteraton
     """
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, max_iter, is_check_stop, stopping_criterion, max_line_search, gamma, line_search_method, stopping_method):
+        """ Initialize the parameters
 
-        
+            Parameter
+            -----------
+            max_iter : int
+                Maximum number of iterations
+            is_check_stop : boolean
+                Whether the stopping criterion is checked
+            stopping_criterion : double
+                The stopping criterion
+            max_line_search : int
+                Maximum number of line search
+            gamma : double
+                Gamma is the parameter for the line search: alpha=gamma*alpha
+            line_search_method : string
+                The method for line search
+            stopping_method : string
+                The method for stopping the iteration
+        """
+        super().__init__(max_iter = max_iter, 
+                        is_check_stop = is_check_stop, 
+                        stopping_criterion = stopping_criterion,
+                        max_line_search = max_line_search, 
+                        gamma = gamma,
+                        line_search_method = line_search_method,
+                        stopping_method = stopping_method)
+        self.max_iter = max_iter
+        self.is_check_stop = is_check_stop
+        self.stopping_criterion = stopping_criterion
+        self.max_line_search = max_line_search
+        self.gamma = gamma
+        self.line_search_method = line_search_method
+        self.stopping_method = stopping_method
+
     def init(self, scenario):
         """ Initialize the iLQR solver class
 
@@ -25,13 +56,17 @@ class iLQRWrapper(AlgoWrapper):
             obj_fun : ObjectiveFunctionWrapper
                 The objective function of the iLQR
         """
+        if not scenario.with_model() or scenario.is_action_discrete() or scenario.is_output_image():
+            raise Exception("Scenario \"" + scenario.name + "\"cannot learn by iLQR")
+
+
         # Initialize the functions
         self.dynamic_model = scenario
         self.obj_fun = scenario.obj_fun
         # Parameters for the model
-        self.n = dynamic_model.n
-        self.m = dynamic_model.m
-        self.T = dynamic_model.T
+        self.n = self.dynamic_model.n
+        self.m = self.dynamic_model.m
+        self.T = self.dynamic_model.T
         # Initialize the trajectory, F_matrix, objective_function_value_last, C_matrix and c_vector
         self.trajectory = self.dynamic_model.eval_traj()
         self.F_matrix = self.dynamic_model.eval_grad_dynamic_model(self.trajectory)
@@ -60,13 +95,8 @@ class iLQRWrapper(AlgoWrapper):
         """
         self.F_matrix = F_matrix
 
-    def _vanilla_line_search(self,  gamma, maximum_line_search):
+    def _vanilla_line_search(self):
         """To ensure the value of the objective function is reduced monotonically
-
-            Parameters
-            ----------
-            gamma : double 
-                Gamma is the parameter for the line search : alpha=gamma*alpha
 
             Return
             ----------
@@ -78,22 +108,17 @@ class iLQRWrapper(AlgoWrapper):
         # alpha: Step size
         alpha = 1.
         trajectory_current = np.zeros((self.T, self.n+self.m, 1))
-        for _ in range(maximum_line_search): # Line Search if the z value is greater than zero
+        for _ in range(self.max_line_search): # Line Search if the z value is greater than zero
             trajectory_current = self.dynamic_model.update_traj(self.trajectory, self.K_matrix, self.k_vector, alpha)
             obj_fun_value_current = self.obj_fun.eval_obj_fun(trajectory_current)
             obj_fun_value_delta = obj_fun_value_current-self.obj_fun_value_last
-            alpha = alpha * gamma
+            alpha = alpha * self.gamma
             if obj_fun_value_delta<0:
                 return trajectory_current, obj_fun_value_current
         return self.trajectory, self.obj_fun_value_last
         
-    def _feasibility_line_search(self, gamma, maximum_line_search):
+    def _feasibility_line_search(self):
         """To ensure the value of the objective function is reduced monotonically, and ensure the trajectory for the next iteration is feasible.
-
-            Parameters
-            ----------
-            gamma : double 
-                Gamma is the parameter for the line search : alpha=gamma*alpha
 
             Return
             ----------
@@ -105,11 +130,11 @@ class iLQRWrapper(AlgoWrapper):
         # alpha: Step size
         alpha = 1.
         trajectory_current = np.zeros((self.T, self.n+self.m, 1))
-        for _ in range(maximum_line_search): # Line Search if the z value is greater than zero
+        for _ in range(self.max_line_search): # Line Search if the z value is greater than zero
             trajectory_current = self.dynamic_model.update_traj(self.trajectory, self.K_matrix, self.k_vector, alpha)
             obj_fun_value_current = self.obj_fun.eval_obj_fun(trajectory_current)
             obj_fun_value_delta = obj_fun_value_current-self.obj_fun_value_last
-            alpha = alpha * gamma
+            alpha = alpha * self.gamma
             if obj_fun_value_delta<0 and (not np.isnan(obj_fun_value_delta)):
                 return trajectory_current, obj_fun_value_current
         return self.trajectory, self.obj_fun_value_last
@@ -128,7 +153,7 @@ class iLQRWrapper(AlgoWrapper):
         obj_fun_value_current = self.obj_fun.eval_obj_fun(trajectory_current)
         return trajectory_current, obj_fun_value_current
 
-    def _vanilla_stopping_criterion(self, obj_fun_value_current, stopping_criterion):
+    def _vanilla_stopping_criterion(self, obj_fun_value_current):
         """Check the amount of change of the objective function. If the amount of change is less than the specific value, the stopping criterion is satisfied.
 
             Parameters
@@ -136,34 +161,18 @@ class iLQRWrapper(AlgoWrapper):
             delta_objective_function_value : double
                 The delta_objective_function_value in the current iteration.
 
-            stopping_criterion : double 
-                The number of input variables
-
             Return
             ----------
             isStop: Boolean
                 Whether the stopping criterion is reached. True: the stopping criterion is satisfied
         """
         obj_fun_value_delta = obj_fun_value_current - self.obj_fun_value_last
-        if (abs(obj_fun_value_delta) < stopping_criterion):
+        if (abs(obj_fun_value_delta) < self.stopping_criterion):
             return True
         return False
         
-    def forward_pass(self, gamma = 0.5, max_line_search = 50, line_search = "vanilla", stopping_method = "vanilla", stopping_criterion = 1e-6):
+    def forward_pass(self):
         """Forward_pass in the iLQR algorithm with simple line search
-        
-            Parameters
-            ----------
-            gamma : double 
-                Gamma is the parameter for the line search: alpha=gamma*alpha
-            max_line_search : int
-                Maximum iterations of line search
-            line_search : string 
-                Line search method ("vanilla", "feasibility", None)
-            stopping_method : string
-                Stopping method
-            stopping_criterion : double 
-                Stopping Criterion
 
             Return
             ----------
@@ -178,15 +187,15 @@ class iLQRWrapper(AlgoWrapper):
             F_matrix : array(T, n, n  + m)
         """
         # Do line search
-        if line_search == "vanilla":
-            self.trajectory, obj_fun_value_current = self._vanilla_line_search(gamma, max_line_search)
-        elif line_search == "feasibility":
-            self.trajectory, obj_fun_value_current = self._feasibility_line_search(gamma, max_line_search)
-        elif line_search == None:
+        if self.line_search_method == "vanilla":
+            self.trajectory, obj_fun_value_current = self._vanilla_line_search()
+        elif self.line_search_method == "feasibility":
+            self.trajectory, obj_fun_value_current = self._feasibility_line_search()
+        elif self.line_search_method == None:
             self.trajectory, obj_fun_value_current = self._none_line_search()
         # Check the stopping criterion
-        if stopping_method == "vanilla":
-            is_stop = self._vanilla_stopping_criterion(obj_fun_value_current, stopping_criterion)
+        if self.stopping_method == "vanilla":
+            is_stop = self._vanilla_stopping_criterion(obj_fun_value_current)
         # Do forward pass
         self.C_matrix = self.obj_fun.eval_hessian_obj_fun(self.trajectory)
         self.c_vector = self.obj_fun.eval_grad_obj_fun(self.trajectory)
@@ -240,45 +249,14 @@ class iLQRWrapper(AlgoWrapper):
     def reset_obj_fun_value_last(self):
         self.obj_fun_value_last = self.init_obj
     
-    def solve(self, example_name, max_iter = 100, is_check_stop = True, maximum_line_search = 10):
-        """ Solve the problem with classical iLQR
-
-            Parameter
-            -----------
-            example_name : string
-                Name of the example
-            max_iter : int
-                The max number of iterations of iLQR
-            is_check_stop : boolean
-                Whether check the stopping criterion, if False, then max_iter number of iterations are performed
-        """
-        logger.debug("[+ +] Initial Obj.Val.: %.5e"%(self.get_obj_fun_value()))
-        start_time = tm.time()
-        for i in range(max_iter):
-            if i == 1:  # skip the compiling time 
-                start_time = tm.time()
-            iter_start_time = tm.time()
-            self.backward_pass()
-            backward_time = tm.time()
-            obj, isStop = self.forward_pass(max_line_search=maximum_line_search)
-            forward_time = tm.time()
-            logger.debug("[+ +] Iter.No.%3d   BWTime:%.3e   FWTime:%.3e   Obj.Val.:%.5e"%(
-                         i,  backward_time-iter_start_time,forward_time-backward_time,obj))
-            result_path = os.path.join("logs", example_name, str(i) +".mat")
-            io.savemat(result_path,{"trajectory": self.get_traj()})
-            if isStop and is_check_stop:
-                break
-        end_time = tm.time()
-        logger.debug("[+ +] Completed! All Time:%.5e"%(end_time-start_time))
-
 class BasiciLQR(iLQRWrapper):
     name = "BasiciLQR"
     def __init__(self, 
-                max_iter = None, 
-                is_check_stop = None, 
-                stopping_criterion = None,
-                max_line_search = None, 
-                gamma = None):
+                max_iter = 1000, 
+                is_check_stop = True, 
+                stopping_criterion = 1e-6,
+                max_line_search = 10, 
+                gamma = 0.5):
         """
             Parameter
             -----------
@@ -294,5 +272,38 @@ class BasiciLQR(iLQRWrapper):
                 Gamma is the parameter for the line search: alpha=gamma*alpha
 
         """
-        super().__init__(**kwargs)
+        super().__init__(max_iter = max_iter, 
+                        is_check_stop = is_check_stop, 
+                        stopping_criterion = stopping_criterion,
+                        max_line_search = max_line_search, 
+                        gamma = gamma,
+                        line_search_method = "vanilla",
+                        stopping_method = "vanilla")
+    
+    def solve(self):
+        """ Solve the problem with classical iLQR
+
+            Parameter
+            -----------
+            example_name : string
+                Name of the example
+        """
+        logger.info("[+ +] Initial Obj.Val.: %.5e"%(self.get_obj_fun_value()))
+        start_time = tm.time()
+        for i in range(self.max_iter):
+            if i == 1:  # skip the compiling time 
+                start_time = tm.time()
+            iter_start_time = tm.time()
+            self.backward_pass()
+            backward_time = tm.time()
+            obj, isStop = self.forward_pass()
+            forward_time = tm.time()
+            logger.info("[+ +] Iter.No.%3d   BWTime:%.3e   FWTime:%.3e   Obj.Val.:%.5e"%(
+                        i,  backward_time-iter_start_time,forward_time-backward_time,obj))
+            logger.save_to_json(trajectory = self.get_traj().tolist())
+            if isStop and self.is_check_stop:
+                break
+        end_time = tm.time()
+        logger.info("[+ +] Completed! All Time:%.5e"%(end_time-start_time))
+        
 #%%iLQR

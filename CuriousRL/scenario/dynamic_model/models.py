@@ -3,7 +3,8 @@ import numpy as np
 import sympy as sp
 from datetime import datetime
 from CuriousRL.utils.Logger import logger
-from CuriousRL.scenario.dynamic_model import DynamicModelWrapper, ObjectiveFunctionWrapper
+from .model_wrapper import DynamicModelWrapper
+from .obj_fun import ObjectiveFunctionWrapper
 
 
 class VehicleTracking(DynamicModelWrapper):
@@ -33,23 +34,14 @@ class VehicleTracking(DynamicModelWrapper):
         # Objective function
         C_matrix = np.diag([0.,1.,1.,1.,10.,10.])
         r_vector = np.asarray([0.,-10.,0.,8.,0.,0.])
-        self.obj_fun = ObjectiveFunctionWrapper((x_u - r_vector)@C_matrix@(x_u - r_vector), x_u)
-        super().__init__(algo = algo, system, x_u, init_state, init_input_traj, self.T, None, None)
-        self.algo.init(self)
+        obj_fun = ObjectiveFunctionWrapper((x_u - r_vector)@C_matrix@(x_u - r_vector), x_u)
+        super().__init__(algo, system, x_u, init_state, init_input, obj_fun, "DynamicModel: VehicleTracking", None, None)
 
-    def learn(self, file_name = None, max_iter = 1000, is_check_stop = True):
-        if file_name == None:
-            file_name = "vehicle_tracking_"+ self.algo.name + datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
+    def learn(self, file_name = None):
         
-        logger_id = Logger.loguru_start(    file_name = file_name, 
-                                            prediction_time=self.T, 
-                                            max_iter = max_iter, 
-                                            is_check_stop = is_check_stop)
+        self.algo.print_params()
         self.algo.solve()
-        
-        vehicle_example = BasiciLQR.iLQRWrapper(dynamic_model, objective_function)
-        vehicle_example.solve(file_name, max_iter = max_iter, is_check_stop = is_check_stop)
-        Logger.loguru_end(logger_id)
+
 
 
 def cart_pole(h_constant = 0.02):
