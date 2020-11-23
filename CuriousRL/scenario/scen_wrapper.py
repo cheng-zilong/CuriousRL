@@ -1,10 +1,7 @@
 import abc
 class ScenarioWrapper(object):
-    def __init__(self, algo, name):
-        self.algo = algo
+    def __init__(self, name):
         self.name = name
-        self.algo.init(self)
-        
 
     @abc.abstractmethod
     def with_model(self):
@@ -16,10 +13,6 @@ class ScenarioWrapper(object):
 
     @abc.abstractmethod
     def is_output_image(self):
-        pass
-
-    @abc.abstractmethod
-    def learn(self):
         pass
 
     @abc.abstractmethod

@@ -1,17 +1,25 @@
 #%%
 import numpy as np
 import sympy as sp
-from datetime import datetime
 from CuriousRL.utils.Logger import logger
-from .model_wrapper import DynamicModelWrapper
+from .dynamic_model import DynamicModelWrapper
 from .obj_fun import ObjectiveFunctionWrapper
+from CuriousRL.scenario.scen_wrapper import ScenarioWrapper
 
-
-class VehicleTracking(DynamicModelWrapper):
+class VehicleTracking(DynamicModelWrapper, ObjectiveFunctionWrapper, ScenarioWrapper):
     """ In this example, the vehicle packing at 0, 0, heading to the postive direction of the y axis
         We hope the vechile can tracking the reference y=-10 with the velocity 8, and head to the right
     """
-    def __init__(self, algo):
+    def with_model(self):
+        return True
+
+    def is_action_discrete(self):
+        return False
+
+    def is_output_image(self):
+        return False
+
+    def __init__(self):
         self.T = 100
         self.n = 4
         self.m = 2
@@ -31,17 +39,12 @@ class VehicleTracking(DynamicModelWrapper):
                 ])
         init_state = np.asarray([0,0,np.pi/2,0],dtype=np.float64).reshape(-1,1)
         init_input = np.zeros((self.T,self.m,1))
+        DynamicModelWrapper.__init__(self, system, x_u, init_state, init_input, None, None)
         # Objective function
         C_matrix = np.diag([0.,1.,1.,1.,10.,10.])
         r_vector = np.asarray([0.,-10.,0.,8.,0.,0.])
-        obj_fun = ObjectiveFunctionWrapper((x_u - r_vector)@C_matrix@(x_u - r_vector), x_u)
-        super().__init__(algo, system, x_u, init_state, init_input, obj_fun, "DynamicModel: VehicleTracking", None, None)
-
-    def learn(self, file_name = None):
-        
-        self.algo.print_params()
-        self.algo.solve()
-
+        ObjectiveFunctionWrapper.__init__(self, (x_u - r_vector)@C_matrix@(x_u - r_vector),x_u)
+        ScenarioWrapper.__init__(self, "DynamicModel::VehicleTracking")
 
 
 def cart_pole(h_constant = 0.02):

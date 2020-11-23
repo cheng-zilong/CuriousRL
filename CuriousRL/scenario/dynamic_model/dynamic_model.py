@@ -13,28 +13,15 @@ from torch.utils.tensorboard import SummaryWriter
 import os
 from datetime import datetime
 from CuriousRL.utils.Logger import logger
-from CuriousRL.scenario.scen_wrapper import ScenarioWrapper
 
-class DynamicModelWrapper(ScenarioWrapper):
+class DynamicModelWrapper(object):
     """ This is a wrapper class for the dynamic model
     """
-    def with_model(self):
-        return True
-
-    def is_action_discrete(self):
-        return False
-
-    def is_output_image(self):
-        return False
-
     def __init__(self, 
-        algo, 
         dynamic_model_function, 
         x_u_var, 
         init_state, 
         init_input_traj,
-        obj_fun, 
-        name,
         add_param_var = None, 
         add_param = None):
         """ Initialization
@@ -65,8 +52,6 @@ class DynamicModelWrapper(ScenarioWrapper):
         grad_dynamic_model_function = sp.transpose(sp.derive_by_array(dynamic_model_function, x_u_var))
         self.grad_dynamic_model_lamdify = njit(sp.lambdify([x_u_var, add_param_var], grad_dynamic_model_function, "math"))
         self.add_param = add_param
-        self.obj_fun = obj_fun
-        super().__init__(algo = algo, name = name)
         
     def eval_traj(self, init_state = None, input_traj = None):
         """ Evaluate the system trajectory by given initial states and input vector

@@ -58,22 +58,20 @@ class iLQRWrapper(AlgoWrapper):
         """
         if not scenario.with_model() or scenario.is_action_discrete() or scenario.is_output_image():
             raise Exception("Scenario \"" + scenario.name + "\"cannot learn by iLQR")
-
-
+        
         # Initialize the functions
-        self.dynamic_model = scenario
-        self.obj_fun = scenario.obj_fun
+        self.scenario = scenario
         # Parameters for the model
-        self.n = self.dynamic_model.n
-        self.m = self.dynamic_model.m
-        self.T = self.dynamic_model.T
+        self.n = self.scenario.n
+        self.m = self.scenario.m
+        self.T = self.scenario.T
         # Initialize the trajectory, F_matrix, objective_function_value_last, C_matrix and c_vector
-        self.trajectory = self.dynamic_model.eval_traj()
-        self.F_matrix = self.dynamic_model.eval_grad_dynamic_model(self.trajectory)
-        self.init_obj = self.obj_fun.eval_obj_fun(self.trajectory)
+        self.trajectory = self.scenario.eval_traj()
+        self.F_matrix = self.scenario.eval_grad_dynamic_model(self.trajectory)
+        self.init_obj = self.scenario.eval_obj_fun(self.trajectory)
         self.obj_fun_value_last = self.init_obj
-        self.c_vector = self.obj_fun.eval_grad_obj_fun(self.trajectory)
-        self.C_matrix = self.obj_fun.eval_hessian_obj_fun(self.trajectory)
+        self.c_vector = self.scenario.eval_grad_obj_fun(self.trajectory)
+        self.C_matrix = self.scenario.eval_hessian_obj_fun(self.trajectory)
 
     def get_traj(self):
         """ Return the current trajectory
@@ -109,8 +107,8 @@ class iLQRWrapper(AlgoWrapper):
         alpha = 1.
         trajectory_current = np.zeros((self.T, self.n+self.m, 1))
         for _ in range(self.max_line_search): # Line Search if the z value is greater than zero
-            trajectory_current = self.dynamic_model.update_traj(self.trajectory, self.K_matrix, self.k_vector, alpha)
-            obj_fun_value_current = self.obj_fun.eval_obj_fun(trajectory_current)
+            trajectory_current = self.scenario.update_traj(self.trajectory, self.K_matrix, self.k_vector, alpha)
+            obj_fun_value_current = self.scenario.eval_obj_fun(trajectory_current)
             obj_fun_value_delta = obj_fun_value_current-self.obj_fun_value_last
             alpha = alpha * self.gamma
             if obj_fun_value_delta<0:
@@ -131,8 +129,8 @@ class iLQRWrapper(AlgoWrapper):
         alpha = 1.
         trajectory_current = np.zeros((self.T, self.n+self.m, 1))
         for _ in range(self.max_line_search): # Line Search if the z value is greater than zero
-            trajectory_current = self.dynamic_model.update_traj(self.trajectory, self.K_matrix, self.k_vector, alpha)
-            obj_fun_value_current = self.obj_fun.eval_obj_fun(trajectory_current)
+            trajectory_current = self.scenario.update_traj(self.trajectory, self.K_matrix, self.k_vector, alpha)
+            obj_fun_value_current = self.scenario.eval_obj_fun(trajectory_current)
             obj_fun_value_delta = obj_fun_value_current-self.obj_fun_value_last
             alpha = alpha * self.gamma
             if obj_fun_value_delta<0 and (not np.isnan(obj_fun_value_delta)):
@@ -149,8 +147,8 @@ class iLQRWrapper(AlgoWrapper):
             current_objective_function_value : float64
                 The value of the objective function after the line search
         """
-        trajectory_current = self.dynamic_model.update_traj(self.trajectory, self.K_matrix, self.k_vector, 1)
-        obj_fun_value_current = self.obj_fun.eval_obj_fun(trajectory_current)
+        trajectory_current = self.scenario.update_traj(self.trajectory, self.K_matrix, self.k_vector, 1)
+        obj_fun_value_current = self.scenario.eval_obj_fun(trajectory_current)
         return trajectory_current, obj_fun_value_current
 
     def _vanilla_stopping_criterion(self, obj_fun_value_current):
@@ -197,9 +195,9 @@ class iLQRWrapper(AlgoWrapper):
         if self.stopping_method == "vanilla":
             is_stop = self._vanilla_stopping_criterion(obj_fun_value_current)
         # Do forward pass
-        self.C_matrix = self.obj_fun.eval_hessian_obj_fun(self.trajectory)
-        self.c_vector = self.obj_fun.eval_grad_obj_fun(self.trajectory)
-        self.F_matrix = self.dynamic_model.eval_grad_dynamic_model(self.trajectory)
+        self.C_matrix = self.scenario.eval_hessian_obj_fun(self.trajectory)
+        self.c_vector = self.scenario.eval_grad_obj_fun(self.trajectory)
+        self.F_matrix = self.scenario.eval_grad_dynamic_model(self.trajectory)
         # Finally update the objective_function_value_last
         self.obj_fun_value_last = obj_fun_value_current
         return obj_fun_value_current, is_stop
@@ -246,7 +244,7 @@ class iLQRWrapper(AlgoWrapper):
     def get_obj_fun_value(self):
         return self.obj_fun_value_last
 
-    def reset_obj_fun_value_last(self):
+    def reset_obj_fun_value(self):
         self.obj_fun_value_last = self.init_obj
     
 class BasiciLQR(iLQRWrapper):

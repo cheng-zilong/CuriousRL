@@ -2,6 +2,8 @@ from loguru import logger as _logger
 import os
 import sys
 import json
+from pathlib import Path
+import shutil
 
 _logger.remove()
 _logger.add(sys.stdout, format="<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> - <red>{level}</red>: {message}")
@@ -13,11 +15,20 @@ class Logger(object):
     ERROR = 40
     DISABLED = 50
     MIN_LEVEL = 0
-    IS_SAVE_JSON = True
     def __init__(self):
         self.logger_id = -100
-        
-    def logger_init(self, folder_name):
+        self.IS_SAVE_JSON = False
+
+    def logger_init(self, folder_name = None, is_save_json = False):
+        if folder_name == None:
+            from datetime import datetime
+            folder_name = datetime.now().strftime("%Y_%m_%d_%H_%M_%S_%f")
+        # if exists, remove it
+        dirpath = Path('logs', folder_name)
+        if dirpath.exists() and dirpath.is_dir():
+            shutil.rmtree(dirpath)
+            _logger.info("[+] The folder \"" + folder_name + "\" exits! Remove it successfully!")
+        self.IS_SAVE_JSON = is_save_json
         if self.logger_id == -100:
             self.folder_name = folder_name
             self.log_path = os.path.join("logs", folder_name, "_main.log")
@@ -32,7 +43,7 @@ class Logger(object):
         _logger.remove(self.logger_id)
         self.logger_id = -100
 
-    def set_save_json(self, is_save = False):
+    def set_save_json(self, ):
         self.IS_SAVE_JSON = False
 
     def save_to_json(self, **kwargs):
