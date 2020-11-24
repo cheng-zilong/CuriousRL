@@ -7,7 +7,7 @@ import cvxpy as cp
 from numba import njit, jitclass, jit
 import numba
 
-class ObjectiveFunctionWrapper(object):
+class iLQRObjectiveFunction(object):
     """This is a wrapper class for the objective function"""
     def __init__(self, obj_fun, x_u_var, add_param_var = None, add_param = None):
         """ Initialization
@@ -121,27 +121,3 @@ class ObjectiveFunctionWrapper(object):
         for tau in range(T):
             hessian_all_tau[tau] = np.asarray(hessian_obj_fun_lamdify(trajectory[tau,:,0], add_param[tau]), dtype = np.float64)
         return hessian_all_tau
-
-class ObjectiveLogBarrier(ObjectiveFunctionWrapper):
-    def __init__(self, obj_fun, x_u_var, ineq_constr, ineq_constr_var = None):
-        t_var = sp.symbols('t') # introduce the parameter for log barrier
-        add_param_var = [] 
-        add_param_var.append(t_var)
-        # add the variables in the constraint to the additional_variables_list
-        if ineq_constr_var != None:
-            add_param_var = add_param_var + ineq_constr_var
-        # construct the barrier objective function
-        barrier_objective_function = obj_fun
-        # add the inequality constraints to the cost function
-        for inequality_constraint in ineq_constr:
-            barrier_objective_function = barrier_objective_function + (-1/t_var)*sp.log(-inequality_constraint)
-        super().__init__(barrier_objective_function, x_u_var, add_param_var)
-    def update_t(self, t):
-        """ Update the weighting parameter of the log barrier function
-
-            Parameter
-            ------
-            t : double
-                Weighting parameter
-        """
-        self.add_param[:,0] = t

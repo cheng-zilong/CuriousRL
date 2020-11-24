@@ -49,8 +49,24 @@ class Logger(object):
     def save_to_json(self, **kwargs):
         if self.logger_id != -100 and self.IS_SAVE_JSON:
             data_str = json.dumps(kwargs)
-            with open(os.path.join("logs", self.folder_name, "_main.json"), 'a') as file_object:
-                file_object.write(data_str + "\n")
+            file_object = open(os.path.join("logs", self.folder_name, "_main.json"), 'a')
+            file_object.write(data_str + "\n")
+            file_object.close()
+
+    def read_from_json(self, folder_name, no_iter = -1):
+        if folder_name == None:
+            folder_name = self.folder_name
+        try:
+            file_object = open(os.path.join("logs", folder_name, "_main.json"))
+            for i, line in enumerate(file_object):
+                if i == no_iter:
+                    return json.loads(line)
+            if no_iter == -1:
+                return json.loads(line)
+            raise Exception("The number of iteration exceeds the maximum iteration number!")
+        except FileNotFoundError:
+            raise Exception("The json file is not saved in the log file \"" + self.folder_name + "\". Please set \"is_save_json = False\" in the \"learn\" method.")
+
 
     def set_level(self, level):
         """

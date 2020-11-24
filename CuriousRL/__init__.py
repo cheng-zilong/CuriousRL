@@ -15,7 +15,7 @@ class ProblemBuilderClass(object):
         self.algo = algo
         self.algo.init(scenario)
 
-    def learn(self, is_use_logger = False, logger_folder = None, is_save_json = False):
+    def learn(self, is_use_logger = True, logger_folder = None, is_save_json = True):
         """ Start learning
 
             Parameter
