@@ -108,7 +108,7 @@ class iLQRDynamicModel(object):
         return self._eval_grad_dynamic_model_static(self.grad_dynamic_function_lamdify, trajectory, self.add_param)
 
     @staticmethod
-    # @njit
+    @njit
     def _eval_traj_static(dynamic_model_lamdify, init_state, input_traj, add_param, m, n, constr):
         T = int(input_traj.shape[0])
         if add_param == None:
@@ -123,7 +123,7 @@ class iLQRDynamicModel(object):
         return trajectory
 
     @staticmethod
-    # @njit
+    @njit
     def _update_traj_static(dynamic_model_lamdify, m, n, old_traj, K_matrix_all, k_vector_all, alpha, add_param, constr):
         T = int(K_matrix_all.shape[0])
         if add_param == None:
@@ -138,9 +138,12 @@ class iLQRDynamicModel(object):
             # The real input of next iteration
             input_u = old_traj[tau, n:n+m] + delta_u
             new_trajectory[tau,n:] = input_u
+            for i, c in enumerate(constr[n:]):
+                new_trajectory[tau, n+i, 0] = min(max(c[0], new_trajectory[tau, n+i, 0]), c[1]) 
             new_trajectory[tau+1,:n] = np.asarray(dynamic_model_lamdify(new_trajectory[tau,:,0], add_param[tau]),dtype=np.float64).reshape(-1,1)
-            for i, c in enumerate(constr):
-                new_trajectory[tau, i, 0] = min(max(c[0], new_trajectory[tau, i, 0]), c[1]) 
+            for i, c in enumerate(constr[:n]):
+                new_trajectory[tau+1, i, 0] = min(max(c[0], new_trajectory[tau+1, i, 0]), c[1]) 
+            
             # dont care the input at the last time stamp, because it is always zero
         return new_trajectory
 

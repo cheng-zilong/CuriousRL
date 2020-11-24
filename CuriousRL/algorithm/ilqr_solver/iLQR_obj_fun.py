@@ -91,9 +91,9 @@ class iLQRObjectiveFunction(object):
     @njit
     def _eval_obj_fun_static(obj_fun_lamdify, trajectory, add_param):
         T = int(trajectory.shape[0])
-        if add_param == None:
+        if add_param is None:
             add_param = np.zeros((T,1))
-        obj_value = 0
+        obj_value = 0.
         for tau in range(T):
             obj_value = obj_value + np.asarray(obj_fun_lamdify(trajectory[tau,:,0], add_param[tau]), dtype = np.float64)
         return obj_value
@@ -103,7 +103,7 @@ class iLQRObjectiveFunction(object):
     def _eval_grad_obj_fun_static(grad_obj_fun_lamdify, trajectory, add_param):
         T = int(trajectory.shape[0])
         m_n = int(trajectory.shape[1])
-        if add_param == None:
+        if add_param is None:
             add_param = np.zeros((T,1))
         grad_all_tau = np.zeros((T, m_n, 1))
         for tau in range(T):
@@ -115,7 +115,7 @@ class iLQRObjectiveFunction(object):
     def _eval_hessian_obj_fun_static(hessian_obj_fun_lamdify, trajectory, add_param):
         T = int(trajectory.shape[0])
         m_n = int(trajectory.shape[1])
-        if add_param == None:
+        if add_param is None:
             add_param = np.zeros((T,1))
         hessian_all_tau = np.zeros((T, m_n, m_n))
         for tau in range(T):

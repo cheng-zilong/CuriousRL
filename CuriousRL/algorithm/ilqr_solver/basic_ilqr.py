@@ -8,8 +8,8 @@ from numba import njit
 from CuriousRL.utils.Logger import logger
 from CuriousRL.algorithm.algo_wrapper import AlgoWrapper
 from CuriousRL.scenario.dynamic_model.dynamic_model import DynamicModelWrapper
-from .iLQR_dynamic_model import iLQRDynamicModel
-from .iLQR_obj_fun import iLQRObjectiveFunction
+from .ilqr_dynamic_model import iLQRDynamicModel
+from .ilqr_obj_fun import iLQRObjectiveFunction
 
 class iLQRWrapper(AlgoWrapper):
     """This is a wrapper class for the iLQR iteraton
@@ -273,7 +273,6 @@ class iLQRWrapper(AlgoWrapper):
         self.obj_fun_value_last = self.init_obj
     
 class BasiciLQR(iLQRWrapper):
-    name = "BasiciLQR"
     def __init__(self, 
                 max_iter = 1000, 
                 is_check_stop = True, 
@@ -305,11 +304,6 @@ class BasiciLQR(iLQRWrapper):
     
     def solve(self):
         """ Solve the problem with classical iLQR
-
-            Parameter
-            -----------
-            example_name : string
-                Name of the example
         """
         logger.info("[+ +] Initial Obj.Val.: %.5e"%(self.get_obj_fun_value()))
         start_time = tm.time()

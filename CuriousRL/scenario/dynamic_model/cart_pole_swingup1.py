@@ -39,7 +39,7 @@ class CartPoleSwingUp1(DynamicModelWrapper):
         add_param_obj = np.zeros((T, 5), dtype = np.float64)
         for tau in range(T):
             if tau < T-1:
-                add_param_obj[tau] = np.asarray((1, 0.1, 1, 1, 0.1))
+                add_param_obj[tau] = np.asarray((1, 0.1, 1, 1, 1))
             else: 
                 add_param_obj[tau] = np.asarray((10000, 1000, 0, 0, 0)) # terminal objective function
         obj_fun = x_u_var@np.diag(np.asarray(C_matrix_diag))@x_u_var

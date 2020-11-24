@@ -7,64 +7,9 @@ from scipy import io
 import os
 import torch
 from .basic_ilqr import iLQRWrapper
+from CuriousRL.scenario.dynamic_model.dynamic_model import DynamicModelWrapper
 from loguru import logger
 from scipy.ndimage import gaussian_filter1d
-
-
-class LogBarrieriLQR(iLQRWrapper):
-    """This is an LogBarrieriLQR class
-    """
-    def __init__(self, dynamic_model, obj_fun):
-        """ Initialization
-
-            Parameter
-            -----------
-            dynamic_model : DynamicModelWrapper
-                The dynamic model of the system
-            obj_fun : ObjectiveFunctionWrapper
-                The objective function of the iLQR
-        """
-        super().__init__(dynamic_model, obj_fun)
-
-    def clear_obj_fun_value_last(self):
-        self.obj_fun_value_last = np.inf
-
-    def solve(self, example_name, max_iter = 100, is_check_stop = True):
-        """ Solve the constraint problem with log barrier iLQR
-
-            Parameter
-            -----------
-            example_name : string
-                Name of the example
-            max_iter : int
-                The max iteration of iLQR
-            is_check_stop : boolean
-                Whether check the stopping criterion, if False, then max_iter number of iterations are performed
-        """
-        logger.debug("[+ +] Initial Obj.Val.: %.5e"%(self.get_obj_fun_value()))
-        self.clear_obj_fun_value_last()
-        self.backward_pass()
-        self.forward_pass()
-        start_time = tm.time()
-        for j in [0.5, 1., 2., 5., 10., 20., 50., 100.]:
-            self.obj_fun.update_t(j)
-            for i in range(max_iter):
-                iter_start_time = tm.time()
-                self.backward_pass()
-                backward_time = tm.time()
-                obj, isStop = self.forward_pass(line_search = "feasibility")
-                forward_time = tm.time()
-                logger.debug("[+ +] Iter.No.%3d   BWTime:%.3e   FWTime:%.3e   Obj.Val.:%.5e"%(
-                            i,  backward_time-iter_start_time,forward_time-backward_time,obj))
-                result_path = os.path.join("logs", example_name, str(j) + "_" + str(i) + ".mat")
-                io.savemat(result_path,{"trajectory": self.get_traj()})
-                if isStop and is_check_stop:
-                    self.clear_obj_fun_value_last()
-                    logger.debug("[+ +] Complete One Inner Loop! The log barrier parameter t is %.5f"%(j) + " in this iteration!")
-                    logger.debug("[+ +] Iteration No.\t Backward Time \t Forward Time \t Objective Value")
-                    break
-        end_time = tm.time()
-        logger.debug("[+ +] Completed! All Time:%.5e"%(end_time-start_time))
 
 class NNiLQR(iLQRWrapper):
     """This is an Neural Network iLQR class
@@ -155,5 +100,3 @@ class NNiLQR(iLQRWrapper):
         end_time = tm.time()
         io.savemat(os.path.join("logs", example_name,  "_result.mat"),{"obj_val": result_obj_val, "iter_time": result_iter_time})
         logger.debug("[+ +] Completed! All Time:%.5e"%(end_time-start_time))
-
-# %%

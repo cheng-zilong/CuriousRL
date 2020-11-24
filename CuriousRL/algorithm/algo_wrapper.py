@@ -21,5 +21,5 @@ class AlgoWrapper(object):
         raise NotImplementedError
 
     def print_params(self):
-        for name in self.kwargs:
-            logger.info("[+] " + name + " = " + str(self.kwargs[name]))
+        for index in self.kwargs:
+            logger.info("[+] " + index + " = " + str(self.kwargs[index]))
