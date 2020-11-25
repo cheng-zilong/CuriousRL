@@ -1,12 +1,8 @@
-#%%
 from __future__ import annotations
 import numpy as np
 import sympy as sp
-from scipy import io
 import time as tm
-from numba import njit
 from CuriousRL.utils.Logger import logger
-from CuriousRL.algorithm.algo_wrapper import AlgoWrapper
 from .basic_ilqr import iLQRWrapper
 from .ilqr_obj_fun import iLQRObjectiveFunction
 from .ilqr_dynamic_model import iLQRDynamicModel
@@ -45,7 +41,7 @@ class LogBarrieriLQR(iLQRWrapper):
                         stopping_method = "relative")
         self.t = t
 
-    def init(self, scenario: DynamicModelWrapper):
+    def init(self, scenario: DynamicModelWrapper, is_use_logger = True, logger_folder = None, is_save_json = True):
         """ Initialize the iLQR solver class
 
             Parameter
@@ -57,6 +53,8 @@ class LogBarrieriLQR(iLQRWrapper):
         """
         if not scenario.with_model() or scenario.is_action_discrete() or scenario.is_output_image():
             raise Exception("Scenario \"" + scenario.__class__.__name__ + "\" cannot learn with LogBarrieriLQR")
+        if is_use_logger:
+            logger.logger_init(logger_folder, is_save_json)
         self.scenario = scenario
         # Parameters for the model
         self.n = self.scenario.get_n()
@@ -109,6 +107,7 @@ class LogBarrieriLQR(iLQRWrapper):
         """ Solve the problem with classical iLQR
         """
         # Initialize the trajectory, F_matrix, objective_function_value_last, C_matrix and c_vector
+        self.print_params()
         self.trajectory = self.dynamic_model.eval_traj()
         self.F_matrix = self.dynamic_model.eval_grad_dynamic_model(self.trajectory)
         self.init_obj = self.obj_fun.eval_obj_fun(self.trajectory)
@@ -119,9 +118,9 @@ class LogBarrieriLQR(iLQRWrapper):
         logger.info("[+ +] Initial Obj.Val.: %.5e"%(self.real_obj_fun.eval_obj_fun(self.get_traj())))
         for j in self.t:
             if j != self.t[0]: # update t parameter
-                add_param = self.obj_fun.get_add_param()
+                add_param = self.get_obj_add_param()
                 add_param[:,-1] = j*np.ones((self.T))
-                self.obj_fun.update_add_param(add_param)
+                self.set_obj_add_param(add_param)
             for i in range(self.max_iter):
                 if j == self.t[0] and i == 1:  # skip the compiling time 
                     start_time = tm.time()
@@ -140,6 +139,3 @@ class LogBarrieriLQR(iLQRWrapper):
                     break
         end_time = tm.time()
         logger.info("[+ +] Completed! All Time:%.5e"%(end_time-start_time))
-
-
-# %%

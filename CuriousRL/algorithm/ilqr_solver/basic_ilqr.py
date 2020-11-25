@@ -7,6 +7,7 @@ from .ilqr_wrapper import iLQRWrapper
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from CuriousRL.scenario.dynamic_model.dynamic_model import DynamicModelWrapper
+
 class BasiciLQR(iLQRWrapper):
     def __init__(self, 
                 max_iter = 1000, 
@@ -36,9 +37,11 @@ class BasiciLQR(iLQRWrapper):
                         line_search_method = "vanilla",
                         stopping_method = "relative")
 
-    def init(self, scenario: DynamicModelWrapper):
+    def init(self, scenario: DynamicModelWrapper, is_use_logger = True, logger_folder = None, is_save_json = True):
         if not scenario.with_model() or scenario.is_action_discrete() or scenario.is_output_image():
             raise Exception("Scenario \"" + scenario.__class__.__name__ + "\" cannot learn with LogBarrieriLQR")
+        if is_use_logger:
+            logger.logger_init(logger_folder, is_save_json)
         self.scenario = scenario
         # Parameters for the model
         self.n = self.scenario.get_n()
@@ -67,6 +70,7 @@ class BasiciLQR(iLQRWrapper):
         """ Solve the problem with classical iLQR
         """
         # Initialize the trajectory, F_matrix, objective_function_value_last, C_matrix and c_vector
+        self.print_params()
         self.trajectory = self.dynamic_model.eval_traj()
         self.F_matrix = self.dynamic_model.eval_grad_dynamic_model(self.trajectory)
         self.init_obj = self.obj_fun.eval_obj_fun(self.trajectory)

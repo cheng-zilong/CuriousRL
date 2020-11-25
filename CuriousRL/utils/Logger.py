@@ -15,10 +15,13 @@ class Logger(object):
     ERROR = 40
     DISABLED = 50
     MIN_LEVEL = 0
+    IS_SAVE_JSON=False
     def __init__(self):
         self.logger_id = -100
 
-    def logger_init(self, folder_name = None, is_save_json = False):
+    def logger_init(self, folder_name = None, is_save_logs = True, is_save_json = False):
+        if self.logger_id != -100:
+            _logger.remove(self.logger_id)
         if folder_name == None:
             from datetime import datetime
             folder_name = datetime.now().strftime("%Y_%m_%d_%H_%M_%S_%f")
@@ -35,12 +38,6 @@ class Logger(object):
             _logger.info("[+] Create logger file folder \"" + folder_name + "\"!")
         else:
             raise Exception("logger init already done!")
-
-    def logger_destroy(self):
-        if self.logger_id == -100:
-            raise Exception("There is no existing logger!")
-        _logger.remove(self.logger_id)
-        self.logger_id = -100
 
     def save_to_json(self, **kwargs): # 
         """ if IS_SAVE_JSON = False, then save it to memmory

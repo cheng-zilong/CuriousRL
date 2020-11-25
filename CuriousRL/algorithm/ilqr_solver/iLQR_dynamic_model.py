@@ -1,7 +1,6 @@
 #%%
 import numpy as np
 import sympy as sp
-import scipy as sci
 import time as tm
 from scipy import io
 from numba import njit

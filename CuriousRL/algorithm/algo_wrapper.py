@@ -14,10 +14,12 @@ class AlgoWrapper(object):
     def __init__(self, **kwargs):
         self.kwargs = kwargs
 
+    @abc.abstractmethod
     def init(self, scenario):
         raise NotImplementedError
     
-    def solve(self):
+    @abc.abstractmethod
+    def solve(self, is_use_logger, logger_folder, is_save_json):
         raise NotImplementedError
 
     def print_params(self):
