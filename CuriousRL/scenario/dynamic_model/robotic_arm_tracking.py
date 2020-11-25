@@ -9,7 +9,7 @@ class RoboticArmTracking(DynamicModelWrapper):
         x0: position_x, x1: position_y, x2: heading anglue, x3: velocity, x4: steering angle, x5: acceleration\\
         If is_with_constraints = True, then the steering angle is limited to [-0.5, 0.5], acceleration is limited to [-2, 2]
     """
-    def __init__(self, is_with_constraints = False, T = 500, x = 2, y = 2):
+    def __init__(self, is_with_constraints = True, T = 500, x = 2, y = 2):
         ##### Dynamic Function ########
         # x0: theta1 
         # x1: theta1 dot 
@@ -24,18 +24,18 @@ class RoboticArmTracking(DynamicModelWrapper):
         x_u_var = sp.symbols('x_u:8')
         m1 = 1
         m2 = 2
-        l1 = 1
-        l2 = 2
+        self.l1 = 1
+        self.l2 = 2
         g = 9.8
         h = 0.005 # sampling time
         H = sp.Matrix([
-            [((1/3)*m1 + m2)*(l1**2),          (1/2)*m2*l1*l2*sp.cos(x_u_var[0] - x_u_var[2])],
-            [(1/2)*m2*l1*l2*sp.cos(x_u_var[0] - x_u_var[2]),               (1/3)*m2*(l2**2)   ]
+            [((1/3)*m1 + m2)*(self.l1**2),          (1/2)*m2*self.l1*self.l2*sp.cos(x_u_var[0] - x_u_var[2])],
+            [(1/2)*m2*self.l1*self.l2*sp.cos(x_u_var[0] - x_u_var[2]),               (1/3)*m2*(self.l2**2)   ]
         ])
         H_inv = H.inv()
         Q = np.asarray([
-            [-0.5*m2*l1*l2*(x_u_var[3]**2)*sp.sin(x_u_var[0] - x_u_var[2]) + 0.5*m1*g*l1*sp.sin(x_u_var[0])+m2*g*l1*sp.sin(x_u_var[0])],
-            [0.5*m2*l1*l2*(x_u_var[1]**2)*sp.sin(x_u_var[0] - x_u_var[2]) + 0.5*m2*g*l2*sp.sin(x_u_var[2])]
+            [-0.5*m2*self.l1*self.l2*(x_u_var[3]**2)*sp.sin(x_u_var[0] - x_u_var[2]) + 0.5*m1*g*self.l1*sp.sin(x_u_var[0])+m2*g*self.l1*sp.sin(x_u_var[0])],
+            [0.5*m2*self.l1*self.l2*(x_u_var[1]**2)*sp.sin(x_u_var[0] - x_u_var[2]) + 0.5*m2*g*self.l2*sp.sin(x_u_var[2])]
             ])
         tau =  np.asarray([
             [x_u_var[6]],
@@ -49,10 +49,10 @@ class RoboticArmTracking(DynamicModelWrapper):
             x_u_var[1] + h*theta1_ddot,
             x_u_var[2] + h*x_u_var[3],
             x_u_var[3] + h*theta2_ddot,
-            l1*sp.sin(x_u_var[0]) + l2*sp.sin(x_u_var[2]),
-            l1*sp.cos(x_u_var[0]) + l2*sp.cos(x_u_var[2])])
-        init_state = np.asarray([0, 0, 0, 0, 0, l1+l2],dtype=np.float64).reshape(-1,1)
-        init_input = np.ones((T,m,1))
+            self.l1*sp.sin(x_u_var[0]) + self.l2*sp.sin(x_u_var[2]),
+            self.l1*sp.cos(x_u_var[0]) + self.l2*sp.cos(x_u_var[2])])
+        init_state = np.asarray([0, 0, 0, 0, 0, self.l1+self.l2],dtype=np.float64).reshape(-1,1)
+        init_input = np.zeros((T,m,1))
         if is_with_constraints: 
             constr = np.asarray([[-np.inf, np.inf], [-np.inf, np.inf], [-np.inf, np.inf], [-np.inf, np.inf], [-np.inf, np.inf], [-np.inf, np.inf], [-500, 500], [-500, 500]]) 
         else:
@@ -85,14 +85,12 @@ class RoboticArmTracking(DynamicModelWrapper):
         import matplotlib.pyplot as plt
         import matplotlib.patches as patches
         import matplotlib as mpl
-        l1 = 1
-        l2 = 2
         trajectory = np.asarray(logger.read_from_json(logger_folder, no_iter)["trajectory"])
         fig = plt.figure(figsize=(4, 4))
         ax = fig.add_subplot(111) 
-        pole1 = patches.FancyBboxPatch((0, 0), 0.04, 1, "round,pad=0.02")
+        pole1 = patches.FancyBboxPatch((0, 0), 0.04, self.l1, "round,pad=0.02")
         pole1.set_color('C0')
-        pole2 = patches.FancyBboxPatch((0, 0), 0.04, 2, "round,pad=0.02")
+        pole2 = patches.FancyBboxPatch((0, 0), 0.04, self.l2, "round,pad=0.02")
         pole2.set_color('C1')
         ax.add_patch(pole1)
         ax.add_patch(pole2)
@@ -103,13 +101,17 @@ class RoboticArmTracking(DynamicModelWrapper):
         for i in range(self.get_T()):
             # draw pole1
             t_start = ax.transData
-            rotate_center = t_start.transform([0, 0])
+            x1 = -0.02*np.cos(trajectory[i,0,0])
+            y1 =  0.02*np.sin(trajectory[i,0,0])
+            rotate_center = t_start.transform([x1, y1])
+            pole1.set_x(x1)
+            pole1.set_y(y1)
             t = mpl.transforms.Affine2D().rotate_around(rotate_center[0], rotate_center[1], -trajectory[i,0,0])
             t_end = t_start + t
             pole1.set_transform(t_end)
             # draw pole2
-            x2 = l1*np.sin(trajectory[i,0,0])
-            y2 = l1*np.cos(trajectory[i,0,0])
+            x2 = self.l1*np.sin(trajectory[i,0,0]) - 0.02*np.cos(trajectory[i,2,0])
+            y2 = self.l1*np.cos(trajectory[i,0,0]) + 0.02*np.sin(trajectory[i,2,0])
             rotate_center = t_start.transform([x2, y2])
             pole2.set_x(x2)
             pole2.set_y(y2)

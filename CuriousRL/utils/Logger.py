@@ -17,7 +17,6 @@ class Logger(object):
     MIN_LEVEL = 0
     def __init__(self):
         self.logger_id = -100
-        self.IS_SAVE_JSON = False
 
     def logger_init(self, folder_name = None, is_save_json = False):
         if folder_name == None:
@@ -43,17 +42,24 @@ class Logger(object):
         _logger.remove(self.logger_id)
         self.logger_id = -100
 
-    def set_save_json(self, ):
-        self.IS_SAVE_JSON = False
+    def save_to_json(self, **kwargs): # 
+        """ if IS_SAVE_JSON = False, then save it to memmory
+        """
+        data_str = json.dumps(kwargs)
+        if self.IS_SAVE_JSON:
+            if self.logger_id != -100:
+                file_object = open(os.path.join("logs", self.folder_name, "_main.json"), 'a')
+                file_object.write(data_str + "\n")
+                file_object.close()
+        else:
+            self.memory_json = kwargs
 
-    def save_to_json(self, **kwargs):
-        if self.logger_id != -100 and self.IS_SAVE_JSON:
-            data_str = json.dumps(kwargs)
-            file_object = open(os.path.join("logs", self.folder_name, "_main.json"), 'a')
-            file_object.write(data_str + "\n")
-            file_object.close()
+    def read_from_json(self, folder_name = None, no_iter = -1):
+        """ if IS_SAVE_JSON = False and folder_name = None, then read it from memmory
+        """
+        if self.IS_SAVE_JSON == False and folder_name == None:
+            return self.memory_json
 
-    def read_from_json(self, folder_name, no_iter = -1):
         if folder_name == None:
             folder_name = self.folder_name
         try:

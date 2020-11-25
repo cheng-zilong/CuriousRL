@@ -9,7 +9,7 @@ class CarParking(DynamicModelWrapper):
         x0: position_x, x1: position_y, x2: heading anglue, x3: velocity, x4: steering angle, x5: acceleration\\
         If is_with_constraints = True, then the steering angle is limited to [-0.5, 0.5], acceleration is limited to [-2, 2]
     """
-    def __init__(self, is_with_constraints = False, T = 500):
+    def __init__(self, is_with_constraints = True, T = 500):
         ##### Dynamic Function ########
         n, m = 4, 2 # number of state = 4, number of input = 1, prediction horizon = 150
         h_constant = 0.1 # sampling time
@@ -73,13 +73,16 @@ class CarParking(DynamicModelWrapper):
         trajectory = np.asarray(logger.read_from_json(logger_folder, no_iter)["trajectory"])
         fig = plt.figure(figsize=(5, 5)) 
         ax = fig.add_subplot(111) 
-        car = patches.FancyBboxPatch((0, 0), 3, 2, "round,pad=0.02")
+        car = patches.FancyBboxPatch((0, 0), 3, 2, "round,pad=0.2")
         car.set_color('C0')
         ax.add_patch(car)
         ax.axis('equal')
-        plt.xlim((-10, 10))
-        plt.ylim((-10, 10))
-        plt.plot(trajectory[:,0], trajectory[:,1])
+        plt.xlim((-5, 10))
+        plt.ylim((-7, 7))
+        plt.plot(trajectory[:,0], trajectory[:,1],'C1')
+        plt.plot([-1,-1], [10,-10],'C2')
+        plt.plot([-1,5], [2,2],'C2')
+        plt.plot([-1,5], [-2,-2],'C2')
         for i in range(self.get_T()):
             angle = trajectory[i,2,0]
             t_start = ax.transData

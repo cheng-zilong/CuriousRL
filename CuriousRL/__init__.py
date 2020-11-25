@@ -13,6 +13,7 @@ class ProblemBuilderClass(object):
                 Specific algorithm
         """
         self.algo = algo
+        self.scenario = scenario
         self.algo.init(scenario)
 
     def learn(self, is_use_logger = True, logger_folder = None, is_save_json = True):

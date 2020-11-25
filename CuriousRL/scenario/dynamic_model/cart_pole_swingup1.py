@@ -10,7 +10,7 @@ class CartPoleSwingUp1(DynamicModelWrapper):
         x0: angle, x1: angular velocity, x2: position, x3: velocity, x4: force\\
         If is_with_constraints = True, then the force is limited to [-5, 5] and position is limited to [-1, 1]
     """
-    def __init__(self, is_with_constraints = False, T = 150):
+    def __init__(self, is_with_constraints = True, T = 150):
         ##### Dynamic Function ########
         n, m = 4, 1 # number of state = 4, number of input = 1, prediction horizon = 150
         h_constant = 0.02 # sampling time

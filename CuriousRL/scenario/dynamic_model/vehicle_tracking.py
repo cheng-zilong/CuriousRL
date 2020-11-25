@@ -9,7 +9,7 @@ class VehicleTracking(DynamicModelWrapper):
         x0: position_x, x1: position_y, x2: heading anglue, x3: velocity, x4: steering angle, x5: acceleration\\
         If is_with_constraints = True, then the steering angle is limited to [-0.6, 0.6], acceleration is limited to [-3, 3]
     """
-    def __init__(self, is_with_constraints = False, T = 100):
+    def __init__(self, is_with_constraints = True, T = 100):
         ##### Dynamic Function ########
         n, m = 4, 2 # number of state = 4, number of input = 1, prediction horizon = 150
         h_constant = 0.1 # sampling time

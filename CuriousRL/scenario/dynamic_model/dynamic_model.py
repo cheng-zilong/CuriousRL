@@ -4,6 +4,7 @@ import sympy as sp
 from numba import njit
 from CuriousRL.scenario.scen_wrapper import ScenarioWrapper
 from CuriousRL.utils.Logger import logger
+import matplotlib.pyplot as plt
 
 class DynamicModelWrapper(ScenarioWrapper):
     """ In this example, the cartpole system is static at 0, 0, heading to the postive direction of the y axis\\
@@ -30,6 +31,28 @@ class DynamicModelWrapper(ScenarioWrapper):
         self.add_param_var = add_param_var
         self.add_param = add_param
         self.constr = constr
+        self.fig = None
+        self.total_play_no = 0  # To make sure, only one player exists in case the player is shutdown
+        
+    def check_interrupted(self, current_player_id):
+        if current_player_id < self.total_play_no:
+            self.total_play_no -= 1
+            logger.debug("Old player (id = %d) is interupted and thus shut down."%(current_player_id))
+            return True
+        else:
+            return False
+    
+    def create_plot(self, figsize =(5, 5), xlim = (-6,6), ylim = (-6,6)):
+        self.total_play_no += 1
+        logger.debug("New player (id = %d) is added"%(self.total_play_no))
+        if self.fig == None:
+            self.fig = plt.figure(figsize = figsize)
+            self.ax = self.fig.add_subplot(111) 
+            self.ax.axis('equal')
+            self.ax.set_xlim(*xlim)
+            self.ax.set_ylim(*ylim)
+            self.ax.grid(True)
+        return self.fig, self.ax, self.total_play_no
 
     def with_model(self):
         return True

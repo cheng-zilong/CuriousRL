@@ -35,7 +35,7 @@ class iLQRObjectiveFunction(object):
         self.hessian_obj_fun_lamdify = njit(sp.lambdify([x_u_var, add_param_var], np.asarray(hessian_objective_function_array)+1e-100*np.eye(hessian_objective_function_array.shape[0]),"numpy"))
         self.add_param = add_param
 
-    def update_add_param(self, add_param):
+    def update_add_param(self, new_add_param):
         """ Update the additional parameters in the objective function
 
             Parameters
@@ -43,7 +43,10 @@ class iLQRObjectiveFunction(object):
             add_param : array(T, -1)
                 Values to the additioanl variables
         """
-        self.add_param = add_param
+        self.add_param = new_add_param
+
+    def get_add_param(self):
+        return self.add_param
 
     def eval_obj_fun(self, trajectory):
         """Return the objective function value
