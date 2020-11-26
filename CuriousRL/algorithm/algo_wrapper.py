@@ -1,9 +1,9 @@
-import abc
+from abc import ABC, abstractmethod
 from CuriousRL.utils.Logger import logger
 
-class AlgoWrapper(object):
+class AlgoWrapper(ABC):
     """ This is a wrapper class for the algorithm implemetation.
-        This is the basic class for all demo algorithms
+        This is the basic class for all algorithms
         You can build your own algortihm based on this class
         An example is given as follows
             >>> class DIYalgorithm1(AlgoWrapper): ...
@@ -14,13 +14,21 @@ class AlgoWrapper(object):
     def __init__(self, **kwargs):
         self.kwargs = kwargs
 
-    @abc.abstractmethod
+    @abstractmethod
     def init(self, scenario):
-        raise NotImplementedError
+        pass
     
-    @abc.abstractmethod
+    @abstractmethod
     def solve(self, is_use_logger, logger_folder, is_save_json):
-        raise NotImplementedError
+        pass
+
+    @abstractmethod
+    def generate_data(self):
+        pass
+
+    @abstractmethod
+    def fetch_data(self):
+        pass
 
     def print_params(self):
         for index in self.kwargs:

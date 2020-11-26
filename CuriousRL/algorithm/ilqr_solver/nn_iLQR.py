@@ -11,6 +11,184 @@ from CuriousRL.scenario.dynamic_model.dynamic_model import DynamicModelWrapper
 from loguru import logger
 from scipy.ndimage import gaussian_filter1d
 
+class NNiLQRDynamicModel(iLQRDynamicModel):
+    """ This is a class to create system model using neural network
+    """
+    def __init__(self, network, init_state, init_input_traj, T):
+        """ Initialization
+            network : nn.module
+                Networks used to train the system dynamic model
+            init_state : array(n,1)
+                Initial system state
+            init_input_traj : array(T, m, 1)
+                Initial input trajectory used to generalize the initial trajectory
+            T : int
+                Prediction horizon
+        """
+        self.init_input_traj = init_input_traj
+        self.init_state = init_state
+        self.n = init_state.shape[0]
+        self.m = init_input_traj.shape[1]
+        self.T = T
+        self.model = network.cuda()
+        self.F_matrix_all = torch.zeros(self.T, self.n, self.n+self.m).cuda()
+        self.const_param = torch.eye(self.n).cuda()
+
+    def pretrain(self, dataset_train, dataset_vali, max_epoch=50000, stopping_criterion = 1e-3, lr = 1e-3, model_name = "NeuralDynamic.model"):
+        """ Pre-train the model by using randomly generalized data
+
+            Parameters
+            ------------
+            dataset_train : DynamicModelDataSetWrapper
+                Data set for training
+            dataset_vali : DynamicModelDataSetWrapper
+                Data set for validation
+            max_epoch : int
+                Maximum number of epochs if stopping criterion is not reached
+            stopping_criterion : double
+                If the objective function of the training set is less than 
+                the stopping criterion, the training is stopped
+            lr : double
+                Learning rate
+            model_name : string
+                When the stopping criterion, 
+                the model with the given name will be saved as a file
+        """
+        # if the model exists, load the model directly
+        model_path = os.path.join("models", model_name)
+        result_train_loss = np.zeros(max_epoch) 
+        result_vali_loss = np.zeros(int(max_epoch/100)) 
+
+        if not os.path.exists(model_path):
+            logger_id = logger.add(os.path.join("models", model_name + "_" + datetime.now().strftime("%Y_%m_%d_%H_%M_%S") + ".log"), format="<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> - {message}")
+            logger.debug("[+ +] Model file \"" + model_name + "\" does NOT exist. Pre-traning starts...")
+            self.writer = SummaryWriter()
+            loss_fun = nn.MSELoss()
+            # self.optimizer = optim.SGD(self.model.parameters(), lr=lr, momentum=0.9)
+            optimizer = optim.RAdam(self.model.parameters(), lr=lr, weight_decay=1e-4)
+            X_train, Y_train = dataset_train.get_data()
+            X_vali, Y_vali = dataset_vali.get_data()  
+            time_start_pretraining = tm.time()
+            for epoch in range(max_epoch):
+                #### Training ###
+                self.model.train()
+                optimizer.zero_grad()
+                Y_prediction = self.model(X_train)         
+                obj_train = loss_fun(Y_prediction, Y_train) 
+                obj_train.backward()                   
+                optimizer.step()
+                result_train_loss[epoch] = obj_train.item()
+                if obj_train.item() < stopping_criterion or epoch % 100 == 0: # Check stopping criterion
+                    ## Evaluation ###
+                    self.model.eval()
+                    Y_prediction = self.model(X_vali)         # Forward Propagation
+                    obj_vali = loss_fun(Y_prediction, Y_vali)
+                    ##### Print #####
+                    logger.debug("[+ +] Epoch: %5d     Train Loss: %.5e     Vali Loss:%.5e"%(
+                            epoch + 1,      obj_train.item(),  obj_vali.item()))
+                    self.writer.add_scalar('Loss/train', obj_train.item(), epoch)
+                    self.writer.add_scalar('Loss/Vali', obj_vali.item(), epoch)
+                    result_vali_loss[int(np.ceil(epoch/100))] = obj_vali.item()
+                    if obj_train.item() < stopping_criterion:
+                        time_end_preraining = tm.time()
+                        time_pretraining = time_end_preraining - time_start_pretraining
+                        logger.debug("[+ +] Pretraining finished! Model file \"" + model_name + "\" is saved!")
+                        logger.debug("[+ +] Pretraining time: %.8f"%(time_pretraining))
+                        torch.save(self.model.state_dict(), model_path)     
+                        io.savemat(os.path.join("models", model_name + "_" + datetime.now().strftime("%Y_%m_%d_%H_%M_%S") + ".mat"), {"Train_loss": result_train_loss, "Vali_loss": result_vali_loss})
+                        logger.remove(logger_id)
+                        return
+            raise Exception("Maximum epoch is reached!")
+        else:
+            logger.debug("[+ +] Model file \"" + model_name + "\" exists. Loading....")
+            self.model.load_state_dict(torch.load(model_path))
+            logger.debug("[+ +] Loading Completed!")
+            self.model.eval()
+
+    def retrain(self, dataset, max_epoch=10000, stopping_criterion = 1e-3, lr = 0.001):
+        logger.debug("[+ +] Re-traning starts...")
+        loss_fun = nn.MSELoss()
+        # optimizer = optim.SGD(self.model.parameters(), lr=lr, momentum=0.9)
+        optimizer = optim.RAdam(self.model.parameters(), lr=lr, weight_decay=1e-4)
+        X_train, Y_train = dataset.get_data()
+        for epoch in range(max_epoch):
+            #### Training ###
+            self.model.train()
+            optimizer.zero_grad()
+            Y_prediction = self.model(X_train)         
+            obj_train = loss_fun(Y_prediction, Y_train)  
+            obj_train.backward()             
+            optimizer.step()
+            if obj_train.item() < stopping_criterion or epoch % 100 == 0:  # Check stopping criterion
+                logger.debug("[+ +] Epoch: %5d   Train Obj: %.5e"%(
+                                    epoch + 1,     obj_train.item()))
+                if obj_train.item() < stopping_criterion:
+                    logger.debug("[+ +] Re-training finished!")
+                    self.model.eval()
+                    return      
+        raise Exception("Maximum epoch is reached!")
+
+    def next_state(self, current_state_and_input):
+        if isinstance(current_state_and_input, list):
+            current_state_and_input = np.asarray(current_state_and_input)
+        if current_state_and_input.shape[0] != 1:
+            current_state_and_input = current_state_and_input.reshape(1,-1)
+        x_u = torch.from_numpy(current_state_and_input).float().cuda()
+        with torch.no_grad():
+            return self.model(x_u).numpy().reshape(-1,1)
+
+    def eval_traj(self, init_state=None, input_traj=None):
+        if init_state is None:
+            init_state = self.init_state
+        if input_traj is None:
+            input_traj = self.init_input_traj
+        input_trajectory_cuda = torch.from_numpy(input_traj).float().cuda()
+        trajectory = torch.zeros(self.T, self.n+self.m).cuda()
+        trajectory[0] = torch.from_numpy(np.vstack((init_state, input_traj[0]))).float().cuda().reshape(-1)
+        with torch.no_grad():
+            for tau in range(self.T-1):
+                trajectory[tau+1, :self.n] = self.model(trajectory[tau,:].reshape(1,-1))
+                trajectory[tau+1, self.n:] = input_trajectory_cuda[tau+1,0]
+        return trajectory.cpu().double().numpy().reshape(self.T, self.m+self.n, 1)
+
+    def update_traj(self, old_traj, K_matrix_all, k_vector_all, alpha): 
+        new_traj = np.zeros((self.T, self.m+self.n, 1))
+        new_traj[0] = old_traj[0] # initial states are the same
+        for tau in range(self.T-1):
+            # The amount of change of state x
+            delta_x = new_traj[tau, :self.n] - old_traj[tau, :self.n]
+            # The amount of change of input u
+            delta_u = K_matrix_all[tau]@delta_x+alpha*k_vector_all[tau]
+            # The real input of next iteration
+            input_u = old_traj[tau, self.n:self.n+self.m] + delta_u
+            new_traj[tau,self.n:] = input_u
+            with torch.no_grad():
+                new_traj[tau+1,0:self.n,0] = self.model(torch.from_numpy(new_traj[tau,:].T).float().cuda()).cpu().double().numpy()
+            # dont care the input at the last time stamp, because it is always zero
+        return new_traj
+
+    def eval_grad_dynamic_model(self, trajectory):
+        trajectory_cuda = torch.from_numpy(trajectory[:,:,0]).float().cuda()
+        # def get_batch_jacobian(net, x, noutputs):
+        #     x = x.unsqueeze(1) # b, 1 ,in_dim
+        #     n = x.size()[0]
+        #     x = x.repeat(1, noutputs, 1) # b, out_dim, in_dim
+        #     x.requires_grad_(True)
+        #     y = net(x)
+        #     input_val = torch.eye(noutputs).reshape(1,noutputs, noutputs).repeat(n, 1, 1)
+        #     y.backward(input_val)
+        #     return x.grad.data
+        for tau in range(0, self.T):
+            x = trajectory_cuda[tau]
+            x = x.repeat(self.n, 1)
+            x.requires_grad_(True)
+            y = self.model(x)
+            y.backward(self.const_param)
+            self.F_matrix_all[tau] = x.grad.data
+            # F_matrix_list[tau] = jacobian(self.model, torch.from_numpy().float()).squeeze().numpy()
+        # get_batch_jacobian(self.model, trajectory_cuda, 4)
+        return self.F_matrix_all.cpu().double().numpy()
+
 class NNiLQR(iLQRWrapper):
     """This is an Neural Network iLQR class
     """

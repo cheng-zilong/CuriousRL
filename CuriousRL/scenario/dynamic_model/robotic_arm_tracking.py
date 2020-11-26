@@ -2,6 +2,9 @@ import numpy as np
 import sympy as sp
 from .dynamic_model import DynamicModelWrapper
 from CuriousRL.utils.Logger import logger
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+import matplotlib as mpl
 
 class RoboticArmTracking(DynamicModelWrapper):
     """ In this example, the vehicle packing at 0, 0, heading to the top\\
@@ -9,7 +12,7 @@ class RoboticArmTracking(DynamicModelWrapper):
         x0: position_x, x1: position_y, x2: heading anglue, x3: velocity, x4: steering angle, x5: acceleration\\
         If is_with_constraints = True, then the steering angle is limited to [-0.5, 0.5], acceleration is limited to [-2, 2]
     """
-    def __init__(self, is_with_constraints = True, T = 500, x = 2, y = 2):
+    def __init__(self, is_with_constraints = True, T = 100, x = 2, y = 2):
         ##### Dynamic Function ########
         # x0: theta1 
         # x1: theta1 dot 
@@ -27,7 +30,7 @@ class RoboticArmTracking(DynamicModelWrapper):
         self.l1 = 1
         self.l2 = 2
         g = 9.8
-        h = 0.005 # sampling time
+        h = 0.01 # sampling time
         H = sp.Matrix([
             [((1/3)*m1 + m2)*(self.l1**2),          (1/2)*m2*self.l1*self.l2*sp.cos(x_u_var[0] - x_u_var[2])],
             [(1/2)*m2*self.l1*self.l2*sp.cos(x_u_var[0] - x_u_var[2]),               (1/3)*m2*(self.l2**2)   ]
@@ -58,13 +61,10 @@ class RoboticArmTracking(DynamicModelWrapper):
         else:
             constr = np.asarray([[-np.inf, np.inf], [-np.inf, np.inf], [-np.inf, np.inf], [-np.inf, np.inf], [-np.inf, np.inf], [-np.inf, np.inf], [-np.inf, np.inf], [-np.inf, np.inf]]) 
         ##### Objective Function ########
-        C_matrix =    np.diag([0.,      0.,     0.,        0.,          1000,         1000,           1,           1])
-        r_vector = np.asarray([1.,      0.,     1.,        0.,          x,            y,              0.,          0.])
+        C_matrix =    np.diag([0.,      10.,     0.,        10.,          10000,         10000,                 0.01,           0.01])
+        r_vector = np.asarray([0.,       0.,     0.,         0.,          x,               y,                   0.,          0.])
 
         obj_fun = (x_u_var - r_vector)@C_matrix@(x_u_var - r_vector) 
-        # sp.log((x_u_var[4]-2)**2) + sp.log((x_u_var[5]-2)**2)
-        
-        # (x_u_var - r_vector)@C_matrix@(x_u_var - r_vector) 
         super().__init__(   dynamic_function=dynamic_function, 
                             x_u_var = x_u_var, 
                             constr = constr, 
@@ -82,23 +82,17 @@ class RoboticArmTracking(DynamicModelWrapper):
             no_iter : int
                 The number of iteration to play the animation
         """
-        import matplotlib.pyplot as plt
-        import matplotlib.patches as patches
-        import matplotlib as mpl
+        fig, ax, current_player_id = super().create_plot(figsize=(4, 4), xlim=(-4,4), ylim=(-4,4))
         trajectory = np.asarray(logger.read_from_json(logger_folder, no_iter)["trajectory"])
-        fig = plt.figure(figsize=(4, 4))
-        ax = fig.add_subplot(111) 
         pole1 = patches.FancyBboxPatch((0, 0), 0.04, self.l1, "round,pad=0.02")
         pole1.set_color('C0')
         pole2 = patches.FancyBboxPatch((0, 0), 0.04, self.l2, "round,pad=0.02")
         pole2.set_color('C1')
         ax.add_patch(pole1)
         ax.add_patch(pole2)
-        ax.axis('equal')
-        plt.xlim((-4, 4))
-        plt.ylim((-4, 4))
-        plt.grid()
         for i in range(self.get_T()):
+            if self.check_interrupted(current_player_id): # if this player is not interrupted
+                break
             # draw pole1
             t_start = ax.transData
             x1 = -0.02*np.cos(trajectory[i,0,0])
@@ -119,6 +113,5 @@ class RoboticArmTracking(DynamicModelWrapper):
             t_end = t_start + t
             pole2.set_transform(t_end)
             fig.canvas.blit(fig.bbox)
-            plt.pause(0.01)
-        plt.show()
+            plt.pause(0.001)
 

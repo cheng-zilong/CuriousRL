@@ -1,5 +1,5 @@
 import matplotlib.patches as patches
-from CuriousRL.algorithm import BasiciLQR, LogBarrieriLQR
+from CuriousRL.algorithm.ilqr_solver import BasiciLQR, LogBarrieriLQR
 from CuriousRL.scenario.dynamic_model import TwoLinkPlanarManipulator
 import numpy as np
 import matplotlib.pyplot as plt
@@ -8,7 +8,7 @@ class TwoLinkPlanarManipulatorDemo(object):
     def __init__(self):
         self.scenario = TwoLinkPlanarManipulator()
         fig, self.ax, _ = self.scenario.create_plot(xlim=(-4,4), ylim=(-4,4))
-        self.algo = LogBarrieriLQR() # self.algo = LogBarrieriLQR()
+        self.algo = LogBarrieriLQR(max_line_search = 10) # self.algo = BasiciLQR(max_line_search = 10)
         self.algo.init(self.scenario, is_save_json=False, is_use_logger=False)
         fig.canvas.mpl_connect('button_press_event', self.onclick)
         self.algo.solve()

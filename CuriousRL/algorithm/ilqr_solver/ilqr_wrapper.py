@@ -1,6 +1,6 @@
 from __future__ import annotations
+from abc import ABC, abstractmethod
 import numpy as np
-import abc
 from numba import njit
 from CuriousRL.algorithm.algo_wrapper import AlgoWrapper
 from typing import TYPE_CHECKING
@@ -57,23 +57,23 @@ class iLQRWrapper(AlgoWrapper):
         self.line_search_method = line_search_method
         self.stopping_method = stopping_method
 
-    @abc.abstractmethod
+    @abstractmethod
     def get_obj_fun(self) -> iLQRObjectiveFunction:
         """ Return the objective function for the iLQR algorithm.
 
         :return: objective function 
         :rtype: iLQRObjectiveFunction
         """
-        raise NotImplementedError
+        pass
 
-    @abc.abstractmethod
+    @abstractmethod
     def get_dynamic_model(self) -> iLQRDynamicModel:
         """ Return the dynamic model function for the iLQR algorithm.
 
         :return: dynamic model function
         :rtype: iLQRDynamicModel
         """
-        raise NotImplementedError
+        pass
 
     def _vanilla_line_search(self):
         """The line search method to ensure the value of the objective function is reduced monotonically.

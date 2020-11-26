@@ -1,20 +1,20 @@
-import abc
-class ScenarioWrapper(object):
+from abc import ABC, abstractmethod
+class ScenarioWrapper(ABC):
     def __init__(self, name):
         self.name = name
 
-    @abc.abstractmethod
+    @abstractmethod
     def with_model(self):
         pass
 
-    @abc.abstractmethod
+    @abstractmethod
     def is_action_discrete(self):
         pass
 
-    @abc.abstractmethod
+    @abstractmethod
     def is_output_image(self):
         pass
 
-    @abc.abstractmethod
+    @abstractmethod
     def play(self):
         pass

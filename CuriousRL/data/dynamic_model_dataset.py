@@ -1,3 +1,57 @@
+
+#%%import torch
+from __future__ import annotations
+import torch
+from torch import tensor
+
+class DatasetWrapper(object):
+    def __init__(self, buffer_size, obs_dim:tuple(int), action_dim:tuple(int), is_use_gpu = None):
+        if is_use_gpu is None:
+            if torch.cuda.is_available():
+                self.IS_USE_GPU = True
+            else:
+                self.IS_USE_GPU = False
+        else:
+            self.IS_USE_GPU = is_use_gpu
+        if self.IS_USE_GPU:
+            self.obs_set = torch.zeros((buffer_size, obs_dim)).cuda()
+            self.action_set = torch.zeros((buffer_size, action_dim)).cuda()
+            self.reward_set = torch.zeros((buffer_size)).cuda()
+            self.done_flag_set = torch.zeros((buffer_size)).cuda()
+        else:
+            self.obs_set = torch.zeros((buffer_size, obs_dim))
+            self.action_set = torch.zeros((buffer_size, action_dim))
+            self.reward_set = torch.zeros((buffer_size))
+            self.done_flag_set = torch.zeros((buffer_size))
+    
+    def update_dataset_cpu(self):
+        pass
+
+    def update_dataset_gpu(self):
+        pass
+
+    def fetch_data_cpu(self):
+        pass
+
+    def fetch_data_gpu(self):
+        pass
+
+    def copy_to_cpu(self, dataset:DatasetWrapper) -> DatasetWrapper:
+        new_dataset_wrapper = DatasetWrapper()
+        pass
+
+    def copy_to_gpu(self, dataset:DatasetWrapper) -> DatasetWrapper:
+        new_dataset_wrapper = DatasetWrapper()
+        pass
+
+
+
+
+
+
+
+
+
 class DynamicModelDataSetWrapper(object):
     """This class generates the dynamic model data for training neural networks
     """
@@ -16,6 +70,7 @@ class DynamicModelDataSetWrapper(object):
                 the range of the initial system state variables, and
                 the range of the system input variables
         """
+        
         self.dataset_x = torch.zeros((self.Trial_No, self.T-1, self.n+self.m,1)).cuda()
         self.dataset_y = torch.zeros((self.Trial_No, self.T-1, self.n,1)).cuda()
         # The index of the dataset for the next time updating
@@ -88,3 +143,4 @@ class DynamicModelDataSetWrapper(object):
             Y : tensor(dataset_size, n)
         """
         return self.X, self. Y
+# %%

@@ -1,5 +1,5 @@
 import matplotlib.patches as patches
-from CuriousRL.algorithm import BasiciLQR, LogBarrieriLQR
+from CuriousRL.algorithm.ilqr_solver import BasiciLQR, LogBarrieriLQR
 from CuriousRL.scenario.dynamic_model import ThreeLinkPlanarManipulator
 import numpy as np
 import matplotlib.pyplot as plt
@@ -8,7 +8,7 @@ class ThreeLinkPlanarManipulatorDemo(object):
     def __init__(self):
         self.scenario = ThreeLinkPlanarManipulator()
         fig, self.ax, _ = self.scenario.create_plot(xlim=(-6,6), ylim=(-6,6))
-        self.algo = BasiciLQR() # self.algo = LogBarrieriLQR()
+        self.algo = BasiciLQR(max_line_search=10) # self.algo = LogBarrieriLQR(max_line_search = 10)
         self.algo.init(self.scenario, is_save_json=False, is_use_logger=False)
         fig.canvas.mpl_connect('button_press_event', self.onclick)
         self.algo.solve()

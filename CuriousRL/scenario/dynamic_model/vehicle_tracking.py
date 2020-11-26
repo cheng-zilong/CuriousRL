@@ -2,6 +2,9 @@ import numpy as np
 import sympy as sp
 from .dynamic_model import DynamicModelWrapper
 from CuriousRL.utils.Logger import logger
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+import matplotlib as mpl
 
 class VehicleTracking(DynamicModelWrapper):
     """ In this example, the vehicle packing at 0, 0, heading to the postive direction of the y axis\\
@@ -9,7 +12,7 @@ class VehicleTracking(DynamicModelWrapper):
         x0: position_x, x1: position_y, x2: heading anglue, x3: velocity, x4: steering angle, x5: acceleration\\
         If is_with_constraints = True, then the steering angle is limited to [-0.6, 0.6], acceleration is limited to [-3, 3]
     """
-    def __init__(self, is_with_constraints = True, T = 100):
+    def __init__(self, is_with_constraints = True, T = 150):
         ##### Dynamic Function ########
         n, m = 4, 2 # number of state = 4, number of input = 1, prediction horizon = 150
         h_constant = 0.1 # sampling time
@@ -52,20 +55,15 @@ class VehicleTracking(DynamicModelWrapper):
             no_iter : int
                 The number of iteration to play the animation
         """
-        import matplotlib.pyplot as plt
-        import matplotlib.patches as patches
-        import matplotlib as mpl
+        fig, ax, current_player_id = super().create_plot(figsize=(8, 2), xlim=(-5,75), ylim=(-15,5))
         trajectory = np.asarray(logger.read_from_json(logger_folder, no_iter)["trajectory"])
-        fig = plt.figure(figsize=(6, 2)) 
-        ax = fig.add_subplot(111) 
         car = patches.FancyBboxPatch((0, 0), 3, 2, "round,pad=0.02")
         car.set_color('C0')
         ax.add_patch(car)
-        ax.axis('equal')
-        plt.xlim((-5, 60))
-        plt.ylim((-15, 10))
         plt.plot(trajectory[:,0], trajectory[:,1])
         for i in range(self.get_T()):
+            if self.check_interrupted(current_player_id): # if this player is not interrupted
+                break
             angle = trajectory[i,2,0]
             t_start = ax.transData
             x = trajectory[i,0,0] + 1*np.sin(angle)
@@ -78,5 +76,4 @@ class VehicleTracking(DynamicModelWrapper):
             car.set_transform(t_end)
             fig.canvas.blit(fig.bbox)
             plt.pause(0.01)
-        plt.show()
 
