@@ -34,9 +34,10 @@ example1.learn()
 
 ```
 #只保存一些参数 网络啥的
-algo1 = algorithm("iLQR",obj = obj, .....)
+algo1 = algorithm("BasiciLQR",obj = obj, .....)
+algo1 = iLQRWrapper()
 #真正初始化所有东西
-example1 = Scenario("package_name::envs_name", algo = algo1)
+example1 = Scenario("dynamic::envs_name", algo = algo1)
 example1.learn()
 ```
 
@@ -97,6 +98,30 @@ AdvancediLQR(AlgoWrapper)
 
 
 ### Network.py
+
+
+
+
+
+
+
+### two_link_planar_manipulator
+
+$$
+x=[\theta_1\quad \dot \theta_1\quad \theta_2\quad \dot\theta_2\quad p_x\quad p_y]\\
+u=[\ddot \theta_1\quad \ddot \theta_2]
+$$
+
+Then it follows that
+$$
+x_0(k+1)= x_0(k)+h x_1(k)\\
+x_1(k+1)= x_1(k)+h u_1(k)\\
+x_2(k+1)= x_2(k)+h x_3(k)\\
+x_3(k+1)= x_3(k)+h u_2(k)\\
+x_4(k+1)=l_1\cos(x_0(k))+l_2\cos(x_0(k)+x_2(k))\\
+x_5(k+1)=l_1\sin(x_0(k))+l_2\sin(x_0(k)+x_2(k))
+$$
+
 
 
 

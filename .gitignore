@@ -59,7 +59,7 @@ coverage.xml
 *.pot
 
 # Django stuff:
-logs/
+logs/*
 log/
 models/
 mat/
@@ -134,3 +134,6 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+sphnix/
+logs/
