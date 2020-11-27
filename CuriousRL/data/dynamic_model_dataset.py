@@ -1,12 +1,9 @@
-
-# %%import torch
 from __future__ import annotations
 import torch
 from torch import tensor
 
-
 class DatasetWrapper(object):
-    def __init__(self, buffer_size, obs_dim: tuple(int), action_dim: tuple(int), is_use_gpu=None):
+    def __init__(self, buffer_size, obs_dim: tuple(int), action_dim: tuple(int), is_use_gpu = None):
         if is_use_gpu is None:
             if torch.cuda.is_available():
                 self._IS_USE_GPU = True
@@ -27,7 +24,6 @@ class DatasetWrapper(object):
         self.update_index = 0
 
     def update_dataset_cpu(self):
-
         pass
 
     def update_dataset_gpu(self):
