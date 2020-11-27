@@ -89,7 +89,7 @@ class CartPoleSwingUp2(DynamicModelWrapper):
             t_end = t_start + t
             pole.set_transform(t_end)
             cart.set_x(trajectory[i,0]-0.2)
-            fig.canvas.blit(fig.bbox)
+            fig.canvas.draw()
             plt.pause(0.01)
             if self.is_interrupted:
                 return

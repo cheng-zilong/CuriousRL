@@ -89,7 +89,7 @@ class CarParking(DynamicModelWrapper):
             t = mpl.transforms.Affine2D().rotate_around(rotate_center[0], rotate_center[1], angle)
             t_end = t_start + t
             car.set_transform(t_end)
-            fig.canvas.blit(fig.bbox)
+            fig.canvas.draw()
             plt.pause(0.001)
             if self.is_interrupted:
                 return

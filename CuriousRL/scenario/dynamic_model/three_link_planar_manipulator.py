@@ -119,7 +119,7 @@ class ThreeLinkPlanarManipulator(DynamicModelWrapper):
             t = mpl.transforms.Affine2D().rotate_around(rotate_center[0], rotate_center[1], -self.play_trajectory_current[0]-self.play_trajectory_current[2]-self.play_trajectory_current[4])
             t_end = t_start + t
             pole3.set_transform(t_end)
-            fig.canvas.blit(fig.bbox)
+            fig.canvas.draw()
             plt.pause(0.01)
             if self.is_interrupted:
                 return
