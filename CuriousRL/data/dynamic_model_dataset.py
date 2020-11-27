@@ -1,19 +1,20 @@
 
-#%%import torch
+# %%import torch
 from __future__ import annotations
 import torch
 from torch import tensor
 
+
 class DatasetWrapper(object):
-    def __init__(self, buffer_size, obs_dim:tuple(int), action_dim:tuple(int), is_use_gpu = None):
+    def __init__(self, buffer_size, obs_dim: tuple(int), action_dim: tuple(int), is_use_gpu=None):
         if is_use_gpu is None:
             if torch.cuda.is_available():
-                self.IS_USE_GPU = True
+                self._IS_USE_GPU = True
             else:
-                self.IS_USE_GPU = False
+                self._IS_USE_GPU = False
         else:
-            self.IS_USE_GPU = is_use_gpu
-        if self.IS_USE_GPU:
+            self._IS_USE_GPU = is_use_gpu
+        if self._IS_USE_GPU:
             self.obs_set = torch.zeros((buffer_size, obs_dim)).cuda()
             self.action_set = torch.zeros((buffer_size, action_dim)).cuda()
             self.reward_set = torch.zeros((buffer_size)).cuda()
@@ -23,8 +24,10 @@ class DatasetWrapper(object):
             self.action_set = torch.zeros((buffer_size, action_dim))
             self.reward_set = torch.zeros((buffer_size))
             self.done_flag_set = torch.zeros((buffer_size))
-    
+        self.update_index = 0
+
     def update_dataset_cpu(self):
+
         pass
 
     def update_dataset_gpu(self):
@@ -36,25 +39,19 @@ class DatasetWrapper(object):
     def fetch_data_gpu(self):
         pass
 
-    def copy_to_cpu(self, dataset:DatasetWrapper) -> DatasetWrapper:
+    def copy_to_cpu(self, dataset: DatasetWrapper) -> DatasetWrapper:
         new_dataset_wrapper = DatasetWrapper()
         pass
 
-    def copy_to_gpu(self, dataset:DatasetWrapper) -> DatasetWrapper:
+    def copy_to_gpu(self, dataset: DatasetWrapper) -> DatasetWrapper:
         new_dataset_wrapper = DatasetWrapper()
         pass
-
-
-
-
-
-
-
 
 
 class DynamicModelDataSetWrapper(object):
     """This class generates the dynamic model data for training neural networks
     """
+
     def _init_dataset(self, dynamic_model, x0_u_bound):
         """ Inner method, initialize the dataset of a system model
 
@@ -70,16 +67,21 @@ class DynamicModelDataSetWrapper(object):
                 the range of the initial system state variables, and
                 the range of the system input variables
         """
-        
-        self.dataset_x = torch.zeros((self.Trial_No, self.T-1, self.n+self.m,1)).cuda()
-        self.dataset_y = torch.zeros((self.Trial_No, self.T-1, self.n,1)).cuda()
+
+        self.dataset_x = torch.zeros(
+            (self.Trial_No, self.T-1, self.n+self.m, 1)).cuda()
+        self.dataset_y = torch.zeros(
+            (self.Trial_No, self.T-1, self.n, 1)).cuda()
         # The index of the dataset for the next time updating
         self.update_index = 0
         x0_u_lower_bound, x0_u_upper_bound = x0_u_bound
         for i in range(self.Trial_No):
-            x0 = np.random.uniform(x0_u_lower_bound[:self.n], x0_u_upper_bound[:self.n]).reshape(-1,1)
-            input_trajectory = np.expand_dims(np.random.uniform(x0_u_lower_bound[self.n:], x0_u_upper_bound[self.n:], (self.T, self.m)), axis=2)
-            new_trajectory = torch.from_numpy(dynamic_model.eval_traj(x0, input_trajectory)).float().cuda()
+            x0 = np.random.uniform(
+                x0_u_lower_bound[:self.n], x0_u_upper_bound[:self.n]).reshape(-1, 1)
+            input_trajectory = np.expand_dims(np.random.uniform(
+                x0_u_lower_bound[self.n:], x0_u_upper_bound[self.n:], (self.T, self.m)), axis=2)
+            new_trajectory = torch.from_numpy(
+                dynamic_model.eval_traj(x0, input_trajectory)).float().cuda()
             self.dataset_x[i] = new_trajectory[:self.T-1]
             self.dataset_y[i] = new_trajectory[1:, :self.n]
         self.X = self.dataset_x.view(self.dataset_size, self.n+self.m)
@@ -87,7 +89,7 @@ class DynamicModelDataSetWrapper(object):
 
     def __init__(self, dynamic_model, x0_u_bound, Trial_No):
         """ Initialization
-            
+
             Parameters
             ---------
             dynamic_model : DynamicModelWrapper
@@ -120,20 +122,25 @@ class DynamicModelDataSetWrapper(object):
         """
         if isinstance(new_trajectory, list):
             for trajectory in new_trajectory:
-                self.dataset_x[self.update_index] = torch.from_numpy(trajectory[:self.T-1]).float().cuda()
-                self.dataset_y[self.update_index] = torch.from_numpy(trajectory[1:,:self.n]).float().cuda()
+                self.dataset_x[self.update_index] = torch.from_numpy(
+                    trajectory[:self.T-1]).float().cuda()
+                self.dataset_y[self.update_index] = torch.from_numpy(
+                    trajectory[1:, :self.n]).float().cuda()
                 if self.update_index < self.Trial_No - 1:
                     self.update_index = self.update_index + 1
                 else:
-                    self.update_index  = 0
+                    self.update_index = 0
         else:
-            self.dataset_x[self.update_index] = torch.from_numpy(new_trajectory[:self.T-1]).float().cuda()
-            self.dataset_y[self.update_index] = torch.from_numpy(new_trajectory[1:,:self.n]).float().cuda()
+            self.dataset_x[self.update_index] = torch.from_numpy(
+                new_trajectory[:self.T-1]).float().cuda()
+            self.dataset_y[self.update_index] = torch.from_numpy(
+                new_trajectory[1:, :self.n]).float().cuda()
             if self.update_index < self.Trial_No - 1:
                 self.update_index = self.update_index + 1
             else:
-                self.update_index  = 0
+                self.update_index = 0
         logger.debug("[+ +] Dataset is updated!")
+
     def get_data(self):
         """ Return the data from the dataset
 
@@ -143,4 +150,3 @@ class DynamicModelDataSetWrapper(object):
             Y : tensor(dataset_size, n)
         """
         return self.X, self. Y
-# %%

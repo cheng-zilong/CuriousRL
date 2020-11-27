@@ -46,7 +46,7 @@ class LogBarrieriLQR(iLQRWrapper):
                          stopping_method=stopping_method)
         self.t = t
 
-    def init(self, scenario: DynamicModelWrapper, is_use_logger=True, logger_folder=None, is_save_json=True) -> LogBarrieriLQR:
+    def init(self, scenario: DynamicModelWrapper) -> LogBarrieriLQR:
         """ Initialize the iLQR solver class
 
             Parameter
@@ -62,8 +62,6 @@ class LogBarrieriLQR(iLQRWrapper):
         if not scenario.with_model() or scenario.is_action_discrete() or scenario.is_output_image():
             raise Exception("Scenario \"" + scenario.__class__.__name__ +
                             "\" cannot learn with LogBarrieriLQR")
-        if is_use_logger:
-            logger.logger_init(logger_folder, is_save_json)
         self.scenario = scenario
         # Parameters for the model
         self.n = self.scenario.get_n()
@@ -112,7 +110,6 @@ class LogBarrieriLQR(iLQRWrapper):
         """ Solve the problem with classical iLQR
         """
         # Initialize the trajectory, F_matrix, objective_function_value_last, C_matrix and c_vector
-        self.print_params()
         self.trajectory = self.dynamic_model.eval_traj()
         self.F_matrix = self.dynamic_model.eval_grad_dynamic_model(
             self.trajectory)
@@ -123,12 +120,14 @@ class LogBarrieriLQR(iLQRWrapper):
         # Start iteration
         logger.info("[+ +] Initial Obj.Val.: %.5e" %
                     (self.real_obj_fun.eval_obj_fun(self.get_traj())))
+        total_iter_no = -1
         for j in self.t:
             if j != self.t[0]:  # update t parameter
                 add_param = self.get_obj_add_param()
                 add_param[:, -1] = j*np.ones((self.T))
                 self.set_obj_add_param(add_param)
             for i in range(self.max_iter):
+                total_iter_no += 1
                 if j == self.t[0] and i == 1:  # skip the compiling time
                     start_time = tm.time()
                 iter_start_time = tm.time()
@@ -138,8 +137,8 @@ class LogBarrieriLQR(iLQRWrapper):
                 forward_time = tm.time()
                 # do not care the value of log barrier
                 obj = self.real_obj_fun.eval_obj_fun(self.get_traj())
-                logger.info("[+ +] Iter.No.%3d   BWTime:%.3e   FWTime:%.3e   Obj.Val.:%.5e" % (
-                            i,  backward_time-iter_start_time, forward_time-backward_time, obj))
+                logger.info("[+ +] Total Iter.No.%3d   Iter.No.%3d   BWTime:%.3e   FWTime:%.3e   Obj.Val.:%.5e" % (
+                                      total_iter_no,     i,  backward_time-iter_start_time, forward_time-backward_time, obj))
                 logger.save_to_json(trajectory=self.get_traj().tolist())
                 if isStop and self.is_check_stop:
                     self.set_obj_fun_value(np.inf)
@@ -154,13 +153,3 @@ class LogBarrieriLQR(iLQRWrapper):
 
     def get_dynamic_model(self) -> iLQRDynamicModel:
         return self.dynamic_model
-
-    def generate_data(self):
-        """Log barrier method does not use any data
-        """
-        pass
-
-    def fetch_data(self):
-        """Log barrier method does not use any data
-        """
-        pass

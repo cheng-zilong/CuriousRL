@@ -5,9 +5,6 @@ import json
 from pathlib import Path
 import shutil
 
-_logger.remove()
-_logger.add(sys.stdout, format="<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> - <red>{level}</red>: {message}")
-
 class Logger(object):
     DEBUG = 10
     INFO = 20
@@ -15,39 +12,61 @@ class Logger(object):
     ERROR = 40
     DISABLED = 50
     MIN_LEVEL = 0
-    IS_SAVE_JSON=False
-    def __init__(self):
-        self.logger_id = -100
+    IS_USE_LOGGER = True
+    FOLDER_NAME = None
+    IS_SAVE_JSON = False
 
-    def logger_init(self, folder_name = None, is_save_logs = True, is_save_json = False):
-        if self.logger_id != -100:
+    def __init__(self):
+        _logger.remove()
+        _logger.add(sys.stdout, format="<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> - <red>{level}</red>: {message}")
+        from datetime import datetime
+        self.FOLDER_NAME = datetime.now().strftime("%Y_%m_%d_%H_%M_%S_%f")
+        log_path = os.path.join("logs",  self.FOLDER_NAME, "main.log")
+        self.logger_id = _logger.add(log_path, format="<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> - <red>{level}</red>: {message}", delay=True)
+
+    def __new__(cls):  
+        """This class uses singleton mode
+        """
+        if not hasattr(cls, '_instance'):
+            orig = super(Logger, cls)
+            cls._instance = orig.__new__(cls)
+        return cls._instance
+
+    def set_is_use_logger(self, is_use_logger):
+        self.IS_USE_LOGGER = is_use_logger
+        if not is_use_logger:
             _logger.remove(self.logger_id)
-        if folder_name == None:
-            from datetime import datetime
-            folder_name = datetime.now().strftime("%Y_%m_%d_%H_%M_%S_%f")
+        return self
+
+    def set_folder_name(self, folder_name, remove_existing_folder = True):
         # if exists, remove it
+        _logger.remove(self.logger_id)
         dirpath = Path('logs', folder_name)
         if dirpath.exists() and dirpath.is_dir():
-            shutil.rmtree(dirpath)
-            _logger.info("[+] The folder \"" + folder_name + "\" exits! Remove it successfully!")
+            if remove_existing_folder:
+                shutil.rmtree(dirpath)
+                _logger.info("[+] The folder \"" + folder_name + "\" exits! Remove it successfully!")
+            else:
+                raise Exception("Folder \"" + folder_name + "\" already exists!")
+        self.FOLDER_NAME = folder_name
+        log_path = os.path.join("logs",  self.FOLDER_NAME, "main.log")
+        self.logger_id = _logger.add(log_path, format="<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> - <red>{level}</red>: {message}",delay=True)
+        return self
+
+    def set_is_save_json(self, is_save_json):
         self.IS_SAVE_JSON = is_save_json
-        if self.logger_id == -100:
-            self.folder_name = folder_name
-            self.log_path = os.path.join("logs", folder_name, "_main.log")
-            self.logger_id = _logger.add(self.log_path, format="<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> - <red>{level}</red>: {message}")
-            _logger.info("[+] Create logger file folder \"" + folder_name + "\"!")
-        else:
-            raise Exception("logger init already done!")
+        return self
 
     def save_to_json(self, **kwargs): # 
         """ if IS_SAVE_JSON = False, then save it to memmory
         """
         data_str = json.dumps(kwargs)
         if self.IS_SAVE_JSON:
-            if self.logger_id != -100:
-                file_object = open(os.path.join("logs", self.folder_name, "_main.json"), 'a')
-                file_object.write(data_str + "\n")
-                file_object.close()
+            if not self.IS_USE_LOGGER:
+                raise Exception("Logger must be used to save json. Please call \"logger.set_is_use_logger(True)\".") 
+            file_object = open(os.path.join("logs", self.FOLDER_NAME, "main.json"), 'a')
+            file_object.write(data_str + "\n")
+            file_object.close()
         else:
             self.memory_json = kwargs
 
@@ -58,9 +77,9 @@ class Logger(object):
             return self.memory_json
 
         if folder_name == None:
-            folder_name = self.folder_name
+            folder_name = self.FOLDER_NAME
         try:
-            file_object = open(os.path.join("logs", folder_name, "_main.json"))
+            file_object = open(os.path.join("logs", folder_name, "main.json"))
             for i, line in enumerate(file_object):
                 if i == no_iter:
                     return json.loads(line)
@@ -68,8 +87,7 @@ class Logger(object):
                 return json.loads(line)
             raise Exception("The number of iteration exceeds the maximum iteration number!")
         except FileNotFoundError:
-            raise Exception("The json file is not saved in the log file \"" + self.folder_name + "\". Please set \"is_save_json = False\" in the \"learn\" method.")
-
+            raise Exception("The json file is not saved in the log file \"" + folder_name + "\". Please set \"is_save_json = True\" in the \"learn\" method.")
 
     def set_level(self, level):
         """

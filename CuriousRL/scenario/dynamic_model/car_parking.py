@@ -68,7 +68,7 @@ class CarParking(DynamicModelWrapper):
             no_iter : int
                 The number of iteration to play the animation
         """
-        fig, ax, current_player_id = super().create_plot(figsize=(5, 5), xlim=(-5,10), ylim=(-7.5,7.5))
+        fig, ax = super().create_plot(figsize=(5, 5), xlim=(-5,10), ylim=(-7.5,7.5))
         trajectory = np.asarray(logger.read_from_json(logger_folder, no_iter)["trajectory"])
         car = patches.FancyBboxPatch((0, 0), 3, 2, "round,pad=0.2")
         car.set_color('C0')
@@ -77,9 +77,8 @@ class CarParking(DynamicModelWrapper):
         plt.plot([-1,-1], [10,-10],'C2')
         plt.plot([-1,5], [2,2],'C2')
         plt.plot([-1,5], [-2,-2],'C2')
+        self.is_interrupted=False
         for i in range(self.get_T()):
-            if self.check_interrupted(current_player_id): # if this player is not interrupted
-                break
             angle = trajectory[i,2,0]
             t_start = ax.transData
             x = trajectory[i,0,0] + 1*np.sin(angle)
@@ -92,4 +91,6 @@ class CarParking(DynamicModelWrapper):
             car.set_transform(t_end)
             fig.canvas.blit(fig.bbox)
             plt.pause(0.001)
-
+            if self.is_interrupted:
+                return
+        self.is_interrupted = True

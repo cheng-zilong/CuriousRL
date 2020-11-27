@@ -15,6 +15,5 @@ class ScenarioWrapper(ABC):
     def is_output_image(self):
         pass
 
-    @abstractmethod
     def play(self):
-        pass
+        raise NotImplementedError

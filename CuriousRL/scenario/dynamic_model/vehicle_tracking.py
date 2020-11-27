@@ -55,15 +55,14 @@ class VehicleTracking(DynamicModelWrapper):
             no_iter : int
                 The number of iteration to play the animation
         """
-        fig, ax, current_player_id = super().create_plot(figsize=(8, 2), xlim=(-5,75), ylim=(-15,5))
+        fig, ax = super().create_plot(figsize=(8, 2), xlim=(-5,75), ylim=(-15,5))
         trajectory = np.asarray(logger.read_from_json(logger_folder, no_iter)["trajectory"])
         car = patches.FancyBboxPatch((0, 0), 3, 2, "round,pad=0.02")
         car.set_color('C0')
         ax.add_patch(car)
         plt.plot(trajectory[:,0], trajectory[:,1])
+        self.is_interrupted=False
         for i in range(self.get_T()):
-            if self.check_interrupted(current_player_id): # if this player is not interrupted
-                break
             angle = trajectory[i,2,0]
             t_start = ax.transData
             x = trajectory[i,0,0] + 1*np.sin(angle)
@@ -76,4 +75,6 @@ class VehicleTracking(DynamicModelWrapper):
             car.set_transform(t_end)
             fig.canvas.blit(fig.bbox)
             plt.pause(0.01)
-
+            if self.is_interrupted:
+                return
+        self.is_interrupted = True

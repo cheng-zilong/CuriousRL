@@ -13,7 +13,8 @@ class AlgoWrapper(ABC):
     """
     def __init__(self, **kwargs):
         self.kwargs = kwargs
-
+        self.print_params()
+        
     @abstractmethod
     def init(self, scenario):
         pass
@@ -22,13 +23,11 @@ class AlgoWrapper(ABC):
     def solve(self, is_use_logger, logger_folder, is_save_json):
         pass
 
-    @abstractmethod
-    def generate_data(self):
-        pass
+    def generate_data(self, dataset, new_data):
+        raise NotImplementedError
 
-    @abstractmethod
-    def fetch_data(self):
-        pass
+    def fetch_data(self, dataset):
+        raise NotImplementedError
 
     def print_params(self):
         for index in self.kwargs:

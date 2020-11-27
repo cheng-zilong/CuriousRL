@@ -68,7 +68,7 @@ class CartPoleSwingUp2(DynamicModelWrapper):
             no_iter : int
                 The number of iteration to play the animation
         """
-        fig, ax, current_player_id = super().create_plot(figsize=(5, 2), xlim=(-5, 5), ylim=(-1,1))
+        fig, ax = super().create_plot(figsize=(5, 2), xlim=(-5, 5), ylim=(-1,1))
         trajectory = np.asarray(logger.read_from_json(logger_folder, no_iter)["trajectory"])
         cart = patches.FancyBboxPatch((0, -0.1), 0.4, 0.2, "round,pad=0.02")
         cart.set_color('C0')
@@ -76,9 +76,8 @@ class CartPoleSwingUp2(DynamicModelWrapper):
         pole.set_color('C1')
         ax.add_patch(cart)
         ax.add_patch(pole)
+        self.is_interrupted=False
         for i in range(self.get_T()):
-            if self.check_interrupted(current_player_id): # if this player is not interrupted
-                break
             angle = np.arctan2(trajectory[i,2,0], trajectory[i,3,0])
             t_start = ax.transData
             x = trajectory[i,0,0]-0.02*np.cos(angle)
@@ -92,3 +91,6 @@ class CartPoleSwingUp2(DynamicModelWrapper):
             cart.set_x(trajectory[i,0]-0.2)
             fig.canvas.blit(fig.bbox)
             plt.pause(0.01)
+            if self.is_interrupted:
+                return
+        self.is_interrupted = True

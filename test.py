@@ -4,11 +4,15 @@ from CuriousRL.scenario.dynamic_model import CartPoleSwingUp1, CartPoleSwingUp2,
                                             VehicleTracking, CarParking,\
                                             RoboticArmTracking, TwoLinkPlanarManipulator, \
                                             ThreeLinkPlanarManipulator
-
+from CuriousRL.utils.Logger import logger
 if __name__ == "__main__":
-    scenario = RoboticArmTracking()
-    algo = BasiciLQR()
-    algo.init(scenario,is_save_json=False, is_use_logger= False).solve()
+    logger.set_folder_name("test3") \
+          .set_is_use_logger(True) \
+          .set_is_save_json(True)
+    scenario = ThreeLinkPlanarManipulator()
+    algp = LogBarrieriLQR()
+    algp.init(scenario).solve()
     scenario.play()
+    
 
 # %%

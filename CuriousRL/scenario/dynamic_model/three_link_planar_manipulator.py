@@ -5,6 +5,7 @@ from CuriousRL.utils.Logger import logger
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import matplotlib as mpl
+
 class ThreeLinkPlanarManipulator(DynamicModelWrapper):
     """ In this example, the vehicle packing at 0, 0, heading to the top\\
         We hope the vechile can pack at 0, 0, and head to the right\\
@@ -76,7 +77,7 @@ class ThreeLinkPlanarManipulator(DynamicModelWrapper):
             no_iter : int
                 The number of iteration to play the animation
         """
-        fig, ax, current_player_id = super().create_plot(xlim=(-6,6), ylim=(-6,6))
+        fig, ax = super().create_plot(xlim=(-6,6), ylim=(-6,6))
         trajectory = np.asarray(logger.read_from_json(logger_folder, no_iter)["trajectory"])
         pole1 = patches.FancyBboxPatch((0, 0), 0.04, self.l1, "round,pad=0.02")
         pole1.set_color('C0')
@@ -87,9 +88,8 @@ class ThreeLinkPlanarManipulator(DynamicModelWrapper):
         ax.add_patch(pole1)
         ax.add_patch(pole2)
         ax.add_patch(pole3)
+        self.is_interrupted = False
         for i in range(self.get_T()):
-            if self.check_interrupted(current_player_id): # if this player is not interrupted
-                break
             self.play_trajectory_current = trajectory[i,:,0]
             # draw pole1
             t_start = ax.transData
@@ -121,4 +121,7 @@ class ThreeLinkPlanarManipulator(DynamicModelWrapper):
             pole3.set_transform(t_end)
             fig.canvas.blit(fig.bbox)
             plt.pause(0.01)
+            if self.is_interrupted:
+                return
+        self.is_interrupted = True
 

@@ -62,7 +62,7 @@ class TwoLinkPlanarManipulator(DynamicModelWrapper):
             no_iter : int
                 The number of iteration to play the animation
         """
-        fig, ax, current_player_id = super().create_plot(xlim=(-4,4), ylim=(-4,4))
+        fig, ax = super().create_plot(xlim=(-4,4), ylim=(-4,4))
         trajectory = np.asarray(logger.read_from_json(logger_folder, no_iter)["trajectory"])
         pole1 = patches.FancyBboxPatch((0, 0), 0.04, self.l1, "round,pad=0.02")
         pole1.set_color('C0')
@@ -70,9 +70,8 @@ class TwoLinkPlanarManipulator(DynamicModelWrapper):
         pole2.set_color('C1')
         ax.add_patch(pole1)
         ax.add_patch(pole2)
+        self.is_interrupted = False
         for i in range(self.get_T()):
-            if self.check_interrupted(current_player_id): # if this player is not interrupted
-                break
             self.play_trajectory_current = trajectory[i,:,0]
             # draw pole1
             t_start = ax.transData
@@ -95,6 +94,8 @@ class TwoLinkPlanarManipulator(DynamicModelWrapper):
             pole2.set_transform(t_end)
             fig.canvas.blit(fig.bbox)
             plt.pause(0.001)
-
+            if self.is_interrupted:
+                return
+        self.is_interrupted = True
 
 

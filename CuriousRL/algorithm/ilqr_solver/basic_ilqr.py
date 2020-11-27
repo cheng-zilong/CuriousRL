@@ -42,12 +42,10 @@ class BasiciLQR(iLQRWrapper):
                          line_search_method=line_search_method,
                          stopping_method=stopping_method)
 
-    def init(self, scenario: DynamicModelWrapper, is_use_logger=True, logger_folder=None, is_save_json=True) -> BasiciLQR:
+    def init(self, scenario: DynamicModelWrapper) -> BasiciLQR:
         if not scenario.with_model() or scenario.is_action_discrete() or scenario.is_output_image():
             raise Exception("Scenario \"" + scenario.__class__.__name__ +
                             "\" cannot learn with LogBarrieriLQR")
-        if is_use_logger:
-            logger.logger_init(logger_folder, is_save_json)
         self.scenario = scenario
         # Parameters for the model
         self.n = self.scenario.get_n()
@@ -72,7 +70,6 @@ class BasiciLQR(iLQRWrapper):
         """ Solve the problem with classical iLQR
         """
         # Initialize the trajectory, F_matrix, objective_function_value_last, C_matrix and c_vector
-        self.print_params()
         self.trajectory = self.dynamic_model.eval_traj()
         self.F_matrix = self.dynamic_model.eval_grad_dynamic_model(
             self.trajectory)
@@ -105,13 +102,3 @@ class BasiciLQR(iLQRWrapper):
 
     def get_dynamic_model(self) -> iLQRDynamicModel:
         return self.dynamic_model
-
-    def generate_data(self):
-        """Log barrier method does not use any data
-        """
-        pass
-
-    def fetch_data(self):
-        """Log barrier method does not use any data
-        """
-        pass
