@@ -14,7 +14,7 @@ class AlgoWrapper(ABC):
     def __init__(self, **kwargs):
         self.kwargs = kwargs
         self.print_params()
-        
+
     @abstractmethod
     def init(self, scenario):
         pass
@@ -22,12 +22,6 @@ class AlgoWrapper(ABC):
     @abstractmethod
     def solve(self, is_use_logger, logger_folder, is_save_json):
         pass
-
-    def generate_data(self, dataset, new_data):
-        raise NotImplementedError
-
-    def fetch_data(self, dataset):
-        raise NotImplementedError
 
     def print_params(self):
         for index in self.kwargs:
