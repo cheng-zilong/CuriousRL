@@ -71,35 +71,27 @@ class Dataset(object):
         # if not exceed the last data in the dataset
         if self._update_index+len(data) <= self._buffer_size:
             self._obs_set[self._update_index:self._update_index +
-                          len(data)] = data.get_obs()
+                          len(data)] = data.obs
             self._action_set[self._update_index:self._update_index +
-                             len(data)] = data.get_action()
+                             len(data)] = data.action
             self._reward_set[self._update_index:self._update_index +
-                             len(data)] = data.get_reward()
+                             len(data)] = data.reward
             self._done_flag_set[self._update_index:self._update_index +
-                                len(data)] = data.get_done_flag()
+                                len(data)] = data.done_flag
             self._update_index += len(data)
             if self._update_index == self._buffer_size:
                 self._update_index = 0
         else:  # if exceed
             exceed_number = len(data) + self._update_index - self._buffer_size
-            self._obs_set[self._update_index:] = data.get_obs(
-            )[:self._buffer_size-self._update_index]
-            self._action_set[self._update_index:] = data.get_action(
-            )[:self._buffer_size-self._update_index]
-            self._reward_set[self._update_index:] = data.get_reward(
-            )[:self._buffer_size-self._update_index]
-            self._done_flag_set[self._update_index:] = data.get_done_flag(
-            )[0:self._buffer_size-self._update_index]
+            self._obs_set[self._update_index:] = data.obs[:self._buffer_size-self._update_index]
+            self._action_set[self._update_index:] = data.action[:self._buffer_size-self._update_index]
+            self._reward_set[self._update_index:] = data.reward[:self._buffer_size-self._update_index]
+            self._done_flag_set[self._update_index:] = data.done_flag[0:self._buffer_size-self._update_index]
             ##########################
-            self._obs_set[:exceed_number] = data.get_obs(
-            )[self._buffer_size-self._update_index:]
-            self._action_set[:exceed_number] = data.get_action(
-            )[self._buffer_size-self._update_index:]
-            self._reward_set[:exceed_number] = data.get_reward(
-            )[self._buffer_size-self._update_index:]
-            self._done_flag_set[:exceed_number] = data.get_done_flag(
-            )[self._buffer_size-self._update_index:]
+            self._obs_set[:exceed_number] = data.obs[self._buffer_size-self._update_index:]
+            self._action_set[:exceed_number] = data.action[self._buffer_size-self._update_index:]
+            self._reward_set[:exceed_number] = data.reward[self._buffer_size-self._update_index:]
+            self._done_flag_set[:exceed_number] = data.done_flag[self._buffer_size-self._update_index:]
             self._update_index = exceed_number
 
     def get_current_buffer_size(self):
