@@ -25,7 +25,7 @@ class TwoLinkPlanarManipulatorDemo(object):
         add_param[:,1] = event.ydata
         self.algo.set_obj_add_param(add_param)
         self.algo.set_obj_fun_value(np.inf)
-        self.algo.set_init_state(self.scenario.play_trajectory_current[0:self.scenario.get_n()].reshape(-1,1))
+        self.algo.set_init_state(self.scenario.play_trajectory_current[0:self.scenario.n].reshape(-1,1))
         self.algo.solve()
         self.scenario.play()
 

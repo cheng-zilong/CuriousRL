@@ -76,8 +76,8 @@ class CartPoleSwingUp2(DynamicModelWrapper):
         pole.set_color('C1')
         ax.add_patch(cart)
         ax.add_patch(pole)
-        self.is_interrupted=False
-        for i in range(self.get_T()):
+        self._is_interrupted=False
+        for i in range(self.T):
             angle = np.arctan2(trajectory[i,2,0], trajectory[i,3,0])
             t_start = ax.transData
             x = trajectory[i,0,0]-0.02*np.cos(angle)
@@ -91,6 +91,6 @@ class CartPoleSwingUp2(DynamicModelWrapper):
             cart.set_x(trajectory[i,0]-0.2)
             fig.canvas.draw()
             plt.pause(0.01)
-            if self.is_interrupted:
+            if self._is_interrupted:
                 return
-        self.is_interrupted = True
+        self._is_interrupted = True

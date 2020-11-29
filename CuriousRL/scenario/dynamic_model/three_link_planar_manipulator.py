@@ -88,8 +88,8 @@ class ThreeLinkPlanarManipulator(DynamicModelWrapper):
         ax.add_patch(pole1)
         ax.add_patch(pole2)
         ax.add_patch(pole3)
-        self.is_interrupted = False
-        for i in range(self.get_T()):
+        self._is_interrupted = False
+        for i in range(self.T):
             self.play_trajectory_current = trajectory[i,:,0]
             # draw pole1
             t_start = ax.transData
@@ -121,7 +121,7 @@ class ThreeLinkPlanarManipulator(DynamicModelWrapper):
             pole3.set_transform(t_end)
             fig.canvas.draw()
             plt.pause(0.01)
-            if self.is_interrupted:
+            if self._is_interrupted:
                 return
-        self.is_interrupted = True
+        self._is_interrupted = True
 

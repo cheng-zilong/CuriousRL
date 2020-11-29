@@ -77,8 +77,8 @@ class CarParking(DynamicModelWrapper):
         plt.plot([-1,-1], [10,-10],'C2')
         plt.plot([-1,5], [2,2],'C2')
         plt.plot([-1,5], [-2,-2],'C2')
-        self.is_interrupted=False
-        for i in range(self.get_T()):
+        self._is_interrupted=False
+        for i in range(self.T):
             angle = trajectory[i,2,0]
             t_start = ax.transData
             x = trajectory[i,0,0] + 1*np.sin(angle)
@@ -91,6 +91,6 @@ class CarParking(DynamicModelWrapper):
             car.set_transform(t_end)
             fig.canvas.draw()
             plt.pause(0.001)
-            if self.is_interrupted:
+            if self._is_interrupted:
                 return
-        self.is_interrupted = True
+        self._is_interrupted = True

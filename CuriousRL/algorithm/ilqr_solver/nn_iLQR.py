@@ -112,8 +112,8 @@ class DynamicModelDataset(DatasetWrapper):
 
             Return
             ---------
-            X : tensor(dataset_size, n+m)\\
-            Y : tensor(dataset_size, n)
+            X : Tensor[dataset_size, n+m]\\
+            Y : Tensor[dataset_size, n]
         """
         return self.X, self. Y
 
@@ -372,7 +372,7 @@ class NNiLQR(iLQRWrapper):
                 if len(new_data) != 0: # Ensure the optimal trajectroy being in the dataset
                     trajectory_noisy = trajectory
                 else:
-                    trajectory_noisy = self.dynamic_model.eval_traj(input_traj = (trajectory[:,self.dynamic_model.n:]+np.random.normal(0, gaussian_noise_sigma, [self.dynamic_model.T,self.dynamic_model.m,1])))
+                    trajectory_noisy = self.dynamic_model.eval_traj(input_traj = (trajectory[:,self.dynamic_model._n:]+np.random.normal(0, gaussian_noise_sigma, [self.dynamic_model._T,self.dynamic_model._m,1])))
                 new_data += [trajectory_noisy]
                 dataset_train.update_dataset(new_data[-int(dataset_train.Trial_No/5):]) # at most update 20% dataset
                 result_path = os.path.join("logs", example_name, str(i) +".mat")

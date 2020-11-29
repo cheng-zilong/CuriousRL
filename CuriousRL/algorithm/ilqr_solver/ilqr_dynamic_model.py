@@ -1,92 +1,84 @@
 import numpy as np
 import sympy as sp
 from numba import njit
-
 class iLQRDynamicModel(object):
-    """ This is a wrapper class for the dynamic model
+    """This class is used to create a dynamic model for solving the iLQR problems. The basic methods provided by this class
+    are evaluating the trajectory, calculating the gradient matrix of the dynamic function, and update the trajectroy by 
+    providing the feedback matrix K and feedforward vector k in the iLQR algorithm.
+
+    :param dynamic_function: The model dynamic function defined by sympy symbolic array, given by the dynamic model scenario class.
+    :type dynamic_function: sympy symbolic array
+    :param x_u_var: State and action variables in the model
+    :type x_u_var: Tuple[sympy.symbol, sympy.symbol, ...]
+    :param constr: The box constraint for each state and action variable in the dynamic system. If no constrained, the corresponding 
+        range should be [-np.inf, np.inf]
+    :type constr: List[n+m, 2]
+    :param init_state: The initial state vector of the system
+    :type init_state: array[n, 1]
+    :param init_input: The initial input vector to create the initial feasible trajectory
+    :type init_input: array[T, m, 1] 
+    :param add_param_var: Introduce the additional variables (total number is q) that are not under derivation, defaults to None
+    :type add_param_var: Tuple[sympy.symbol, sympy.symbol, ...], optional
+    :param add_param: Give the values to the additioanl variables, defaults to None
+    :type add_param: array[T, q], optional
     """
     def __init__(self, dynamic_function, x_u_var, constr, init_state, init_input, add_param_var = None, add_param = None):
-        """ Initialization
-            
-            Parameters
-            ---------------
-            dynamic_function : sympy.array with symbols
-                The model dynamic function defined by sympy symbolic array
-            x_u_var : tuple with sympy.symbols 
-                State and input variables in the model
-            init_state : array(n, 1)
-                The initial state vector of the system
-            init_input : array(T, m, 1) 
-                The initial input vector
-            add_param_var : tuple with sympy.symbols 
-                Introduce the additional variables that are not derived
-            add_param : array(T, -1)
-                Give the values to the additioanl variables
-        """
-        self.init_state = init_state
-        self.init_input = init_input
-        self.n = int(init_state.shape[0])
-        self.m = int(len(x_u_var) - self.n)
-        self.T = int(init_input.shape[0])
+        self._init_state = init_state
+        self._init_input = init_input
+        self._n = int(init_state.shape[0])
+        self._m = int(len(x_u_var) - self._n)
+        self._T = int(init_input.shape[0])
         if add_param_var is None:
             add_param_var = sp.symbols("no_use")
-        self.dynamic_function_lamdify = njit(sp.lambdify([x_u_var, add_param_var], dynamic_function, "math"))
+        self._dynamic_function_lamdify = njit(sp.lambdify([x_u_var, add_param_var], dynamic_function, "math"))
         grad_dynamic_function = sp.transpose(sp.derive_by_array(dynamic_function, x_u_var))
-        self.grad_dynamic_function_lamdify = njit(sp.lambdify([x_u_var, add_param_var], grad_dynamic_function, "math"))
-        self.add_param = add_param
-        self.constr = constr
+        self._grad_dynamic_function_lamdify = njit(sp.lambdify([x_u_var, add_param_var], grad_dynamic_function, "math"))
+        self._add_param = add_param
+        self._constr = constr
 
     def eval_traj(self, init_state = None, input_traj = None):
-        """ Evaluate the system trajectory by given initial states and input vector
-            Parameters
-            -----------------
-            init_state : array(n, 1)
-                The initial state used to evaluate trajectory
-            input_traj : array(T, n, 1)
-                The input trajectory used to evaluate trajectory
+        """Evaluate the system trajectory by given initial states and input vector. If init_state = None, input_traj = None,
+        then the generated trajectory is based on the initial states and input vector given in the initialization. 
 
-            Return
-            ---------------
-            trajectory : array(T, m+n, 1)
-                The whole trajectory
+        :param init_state: The initial state used to evaluate trajectory, defaults to None
+        :type init_state: array[n, 1], optional
+        :param input_traj: The input trajectory used to evaluate trajectory, defaults to None
+        :type input_traj: array[T, m, 1], optional
+        :return: The generated trajectory
+        :rtype: array[T, m+n, 1]
         """
         if init_state is None:
-            init_state = self.init_state
+            init_state = self._init_state
         if input_traj is None:
-            input_traj = self.init_input
-        return self._eval_traj_static(self.dynamic_function_lamdify, init_state, input_traj, self.add_param, self.m, self.n, self.constr)
+            input_traj = self._init_input
+        return self._eval_traj_static(self._dynamic_function_lamdify, init_state, input_traj, self._add_param, self._m, self._n, self._constr)
 
     def update_traj(self, old_traj, K_matrix_all, k_vector_all, alpha): 
-        """ Update the trajectory by using iLQR
-            Parameters
-            -----------------
-            old_traj : array(T, m+n, 1)
-                The trajectory in the last iteration
-            K_matrix_all : array(T, m, n)\\
-            k_vector_all : array(T, m, 1)\\
-            alpha : double
-                Step size in this iteration
+        """Generate the new system trajectory by given old trajectory, feedback matrix K, feedforward vector k,
+        calculated by the iLQR algorithm and the step size alpha.
 
-            Return
-            ---------------
-            new_trajectory : array(T, m+n, 1) 
-                The updated trajectory
+        :param old_traj: Trajectory in the last iteration
+        :type old_traj: array[T, m+n, 1]
+        :param K_matrix_all: Feedback matrix K obtained by iLQR
+        :type K_matrix_all: array[T, n, m+n]
+        :param k_vector_all: Feedforward vector k obtained by iLQR
+        :type k_vector_all: array[T, m+n, 1]
+        :param alpha: Step size in this iteration
+        :type alpha: float
+        :return: Updated trajectory
+        :rtype: array[T, m+n, 1]
         """
-        return self._update_traj_static(self.dynamic_function_lamdify, self.m, self.n, old_traj, K_matrix_all, k_vector_all, alpha, self.add_param, self.constr)
+        return self._update_traj_static(self._dynamic_function_lamdify, self._m, self._n, old_traj, K_matrix_all, k_vector_all, alpha, self._add_param, self._constr)
 
     def eval_grad_dynamic_model(self, trajectory):
-        """ Return the matrix of the gradient of the dynamic_model
-            Parameters
-            -----------------
-            trajectory : array(T, m+n, 1)
-                System trajectory
+        """Evaluate the matrix of the gradient of the dynamic_model given a specific trajectory
 
-            Return
-            ---------------
-            grad : array(T, m, n)
-                The gradient of the dynamic_model
+        :param trajectory: Specific trajectory
+        :type trajectory: array[T, m+n, 1]
+        :return: Gradient matrix of the dynamic_model
+        :rtype:  array[T, n, m+n]
         """
-        return self._eval_grad_dynamic_model_static(self.grad_dynamic_function_lamdify, trajectory, self.add_param)
+        return self._eval_grad_dynamic_model_static(self._grad_dynamic_function_lamdify, trajectory, self._add_param)
 
     @staticmethod
     @njit

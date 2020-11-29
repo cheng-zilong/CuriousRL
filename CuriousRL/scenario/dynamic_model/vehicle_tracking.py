@@ -61,8 +61,8 @@ class VehicleTracking(DynamicModelWrapper):
         car.set_color('C0')
         ax.add_patch(car)
         plt.plot(trajectory[:,0], trajectory[:,1])
-        self.is_interrupted=False
-        for i in range(self.get_T()):
+        self._is_interrupted=False
+        for i in range(self.T):
             angle = trajectory[i,2,0]
             t_start = ax.transData
             x = trajectory[i,0,0] + 1*np.sin(angle)
@@ -75,6 +75,6 @@ class VehicleTracking(DynamicModelWrapper):
             car.set_transform(t_end)
             fig.canvas.draw()
             plt.pause(0.01)
-            if self.is_interrupted:
+            if self._is_interrupted:
                 return
-        self.is_interrupted = True
+        self._is_interrupted = True

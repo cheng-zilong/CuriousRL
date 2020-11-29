@@ -1,7 +1,6 @@
 from __future__ import annotations
 from typing import Union
 import torch
-from torch import tensor
 import numpy as np
 from .data import Data
 
@@ -51,12 +50,12 @@ class Dataset(object):
             self._obs_set = torch.zeros((buffer_size, *obs_dim)).cuda()
             self._action_set = torch.zeros((buffer_size, *action_dim)).cuda()
             self._reward_set = torch.zeros((buffer_size)).cuda()
-            self._done_flag_set = torch.zeros((buffer_size)).cuda()
+            self._done_flag_set = torch.zeros((buffer_size), dtype=torch.bool).cuda()
         else:
             self._obs_set = torch.zeros((buffer_size, *obs_dim))
             self._action_set = torch.zeros((buffer_size, *action_dim))
             self._reward_set = torch.zeros((buffer_size))
-            self._done_flag_set = torch.zeros((buffer_size))
+            self._done_flag_set = torch.zeros((buffer_size), dtype=torch.bool)
         self._update_index = 0
         self._total_update = 0  # totally number of obtained data
 
@@ -153,7 +152,6 @@ class Dataset(object):
                                 "The latter must be less or equal than the former.")
             index = np.random.choice(
                 self._buffer_size, size=num_of_data, replace=False)
-        print(index)
         data = Data(self._obs_set[index], self._action_set[index],
                     self._reward_set[index], self._done_flag_set[index])
         return data

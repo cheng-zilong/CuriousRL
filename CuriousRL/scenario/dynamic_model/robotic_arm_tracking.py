@@ -90,8 +90,8 @@ class RoboticArmTracking(DynamicModelWrapper):
         pole2.set_color('C1')
         ax.add_patch(pole1)
         ax.add_patch(pole2)
-        self.is_interrupted=False
-        for i in range(self.get_T()):
+        self._is_interrupted=False
+        for i in range(self.T):
             # draw pole1
             t_start = ax.transData
             x1 = -0.02*np.cos(trajectory[i,0,0])
@@ -113,6 +113,6 @@ class RoboticArmTracking(DynamicModelWrapper):
             pole2.set_transform(t_end)
             fig.canvas.draw()
             plt.pause(0.001)
-            if self.is_interrupted:
+            if self._is_interrupted:
                 return
-        self.is_interrupted = True
+        self._is_interrupted = True
