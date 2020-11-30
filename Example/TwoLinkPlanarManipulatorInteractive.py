@@ -8,7 +8,7 @@ class TwoLinkPlanarManipulatorDemo(object):
     def __init__(self):
         self.scenario = TwoLinkPlanarManipulator()
         fig, self.ax = self.scenario.create_plot(xlim=(-4,4), ylim=(-4,4))
-        self.algo = LogBarrieriLQR(max_line_search = 10) # self.algo = BasiciLQR(max_line_search = 10)
+        self.algo = BasiciLQR(max_line_search = 10) # self.algo = BasiciLQR(max_line_search = 10)
         self.algo.init(self.scenario)
         fig.canvas.mpl_connect('button_press_event', self.onclick)
         self.algo.solve()
@@ -25,7 +25,7 @@ class TwoLinkPlanarManipulatorDemo(object):
         add_param[:,1] = event.ydata
         self.algo.set_obj_add_param(add_param)
         self.algo.set_obj_fun_value(np.inf)
-        self.algo.set_init_state(self.scenario.play_trajectory_current[0:self.scenario.get_n()].reshape(-1,1))
+        self.algo.set_init_state(self.scenario.play_trajectory_current[0:self.scenario.n].reshape(-1,1))
         self.algo.solve()
         self.scenario.play()
 

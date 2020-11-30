@@ -22,7 +22,7 @@ class TwoLinkPlanarManipulator(DynamicModelWrapper):
         # x6: tau1
         # x7: tau2
         
-        n, m = 6, 2 # number of state = 6, number of input = 2, prediction horizon = 500
+        n, m = 6, 2 # number of state = 6, number of action = 2, prediction horizon = 500
         x_u_var = sp.symbols('x_u:8')
         h = 0.01 # sampling time
         self.l1 = 1
@@ -35,7 +35,7 @@ class TwoLinkPlanarManipulator(DynamicModelWrapper):
             self.l1*sp.sin(x_u_var[0]) + self.l2*sp.sin(x_u_var[0]+x_u_var[2]),
             self.l1*sp.cos(x_u_var[0]) + self.l2*sp.cos(x_u_var[0]+x_u_var[2])])
         init_state = np.asarray([0, 0, 0, 0, 0, self.l1+self.l2], dtype=np.float64).reshape(-1,1)
-        init_input = np.zeros((T,m,1))
+        init_action = np.zeros((T,m,1))
         constr = np.asarray([[-np.inf, np.inf], [-np.inf, np.inf], [-np.inf, np.inf], [-np.inf, np.inf], [-np.inf, np.inf], [-np.inf, np.inf], [-100, 100], [-100, 100]]) 
         ##### Objective Function ########
         position_var = sp.symbols("p:2") # x and y
@@ -47,7 +47,7 @@ class TwoLinkPlanarManipulator(DynamicModelWrapper):
                             x_u_var = x_u_var, 
                             constr = constr, 
                             init_state = init_state, 
-                            init_input = init_input, 
+                            init_action = init_action, 
                             obj_fun = obj_fun,
                             add_param_var= position_var,
                             add_param= add_param)
@@ -70,8 +70,8 @@ class TwoLinkPlanarManipulator(DynamicModelWrapper):
         pole2.set_color('C1')
         ax.add_patch(pole1)
         ax.add_patch(pole2)
-        self.is_interrupted = False
-        for i in range(self.get_T()):
+        self._is_interrupted = False
+        for i in range(self.T):
             self.play_trajectory_current = trajectory[i,:,0]
             # draw pole1
             t_start = ax.transData
@@ -94,8 +94,8 @@ class TwoLinkPlanarManipulator(DynamicModelWrapper):
             pole2.set_transform(t_end)
             fig.canvas.draw()
             plt.pause(0.001)
-            if self.is_interrupted:
+            if self._is_interrupted:
                 return
-        self.is_interrupted = True
+        self._is_interrupted = True
 
 

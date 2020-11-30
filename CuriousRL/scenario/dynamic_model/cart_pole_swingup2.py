@@ -15,7 +15,7 @@ class CartPoleSwingUp2(DynamicModelWrapper):
     """
     def __init__(self, is_with_constraints = True, T = 150):
         ##### Dynamic Function ########
-        n, m = 5, 1 # number of state = 4, number of input = 1, prediction horizon = 150
+        n, m = 5, 1 # number of state = 4, number of action = 1, prediction horizon = 150
         h_constant = 0.02 # sampling time
         m_c = 1 # car mass
         m_p = 0.1 # pole mass
@@ -34,7 +34,7 @@ class CartPoleSwingUp2(DynamicModelWrapper):
             x_u_var[4] + h_constant*dotdot_theta
         ])
         init_state = np.asarray([0, 0, 0.001, -1, 0],dtype=np.float64).reshape(-1,1)
-        init_input = np.zeros((T, m, 1))
+        init_action = np.zeros((T, m, 1))
         if is_with_constraints: 
             constr = np.asarray([[-1, 1],           [-np.inf, np.inf], [-np.inf, np.inf], [-np.inf, np.inf], [-np.inf, np.inf], [-5, 5]]) 
         else:
@@ -53,7 +53,7 @@ class CartPoleSwingUp2(DynamicModelWrapper):
                             x_u_var = x_u_var, 
                             constr = constr, 
                             init_state = init_state, 
-                            init_input = init_input, 
+                            init_action = init_action, 
                             obj_fun = obj_fun,
                             add_param_var = C_matrix_diag, 
                             add_param = add_param_obj)
@@ -76,8 +76,8 @@ class CartPoleSwingUp2(DynamicModelWrapper):
         pole.set_color('C1')
         ax.add_patch(cart)
         ax.add_patch(pole)
-        self.is_interrupted=False
-        for i in range(self.get_T()):
+        self._is_interrupted=False
+        for i in range(self.T):
             angle = np.arctan2(trajectory[i,2,0], trajectory[i,3,0])
             t_start = ax.transData
             x = trajectory[i,0,0]-0.02*np.cos(angle)
@@ -91,6 +91,6 @@ class CartPoleSwingUp2(DynamicModelWrapper):
             cart.set_x(trajectory[i,0]-0.2)
             fig.canvas.draw()
             plt.pause(0.01)
-            if self.is_interrupted:
+            if self._is_interrupted:
                 return
-        self.is_interrupted = True
+        self._is_interrupted = True

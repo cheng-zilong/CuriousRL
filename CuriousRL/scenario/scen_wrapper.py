@@ -1,8 +1,5 @@
 from abc import ABC, abstractmethod
 class ScenarioWrapper(ABC):
-    def __init__(self, name):
-        self.name = name
-
     @abstractmethod
     def with_model(self):
         pass

@@ -40,17 +40,16 @@ class iLQRObjectiveFunction(object):
     :param add_param: Give the values to the additioanl variables (totally p variables), defaults to None
     :type add_param: array(T, p), optional
     """
-    
     def __init__(self, obj_fun, x_u_var, add_param_var = None, add_param = None): 
         if add_param_var is None:
             add_param_var = sp.symbols("no_use")
-        self.obj_fun_lamdify = njit(sp.lambdify([x_u_var,add_param_var], obj_fun, "numpy"))
+        self._obj_fun_lamdify = njit(sp.lambdify([x_u_var,add_param_var], obj_fun, "numpy"))
         gradient_objective_function_array = sp.derive_by_array(obj_fun, x_u_var)
-        self.grad_obj_fun_lamdify = njit(sp.lambdify([x_u_var, add_param_var], gradient_objective_function_array,"numpy"))       
+        self._grad_obj_fun_lamdify = njit(sp.lambdify([x_u_var, add_param_var], gradient_objective_function_array,"numpy"))       
         hessian_objective_function_array = sp.derive_by_array(gradient_objective_function_array, x_u_var)
         # A stupid method to ensure each element in the hessian matrix is in the type of float64
-        self.hessian_obj_fun_lamdify = njit(sp.lambdify([x_u_var, add_param_var], np.asarray(hessian_objective_function_array)+1e-100*np.eye(hessian_objective_function_array.shape[0]),"numpy"))
-        self.add_param = add_param
+        self._hessian_obj_fun_lamdify = njit(sp.lambdify([x_u_var, add_param_var], np.asarray(hessian_objective_function_array)+1e-100*np.eye(hessian_objective_function_array.shape[0]),"numpy"))
+        self._add_param = add_param
 
     def eval_obj_fun(self, trajectory):
         """Given the trajectory of the state and action variables, evaluate the objective function value.
@@ -60,7 +59,7 @@ class iLQRObjectiveFunction(object):
         :return: Objective function value.
         :rtype: double
         """
-        return self._eval_obj_fun_static(self.obj_fun_lamdify, trajectory, self.add_param)
+        return self._eval_obj_fun_static(self._obj_fun_lamdify, trajectory, self._add_param)
 
     def eval_grad_obj_fun(self, trajectory):
         """Given the trajectory of the state and action variables, 
@@ -71,7 +70,7 @@ class iLQRObjectiveFunction(object):
         :return: Jacobian matrix of the objective function
         :rtype: array(T, m+n,1) 
         """
-        return self._eval_grad_obj_fun_static(self.grad_obj_fun_lamdify, trajectory, self.add_param)
+        return self._eval_grad_obj_fun_static(self._grad_obj_fun_lamdify, trajectory, self._add_param)
 
     def eval_hessian_obj_fun(self, trajectory):
         """Given the trajectory of the state and action variables, 
@@ -82,7 +81,7 @@ class iLQRObjectiveFunction(object):
         :return: Hessian matrix of the objective function
         :rtype: array(T, m+n, m+n) 
         """
-        return self._eval_hessian_obj_fun_static(self.hessian_obj_fun_lamdify, trajectory, self.add_param)
+        return self._eval_hessian_obj_fun_static(self._hessian_obj_fun_lamdify, trajectory, self._add_param)
 
     @staticmethod
     @njit

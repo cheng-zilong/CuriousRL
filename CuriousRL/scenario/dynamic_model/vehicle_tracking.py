@@ -14,7 +14,7 @@ class VehicleTracking(DynamicModelWrapper):
     """
     def __init__(self, is_with_constraints = True, T = 150):
         ##### Dynamic Function ########
-        n, m = 4, 2 # number of state = 4, number of input = 1, prediction horizon = 150
+        n, m = 4, 2 # number of state = 4, number of action = 1, prediction horizon = 150
         h_constant = 0.1 # sampling time
         x_u_var = sp.symbols('x_u:6')
         d_constant = 3
@@ -29,7 +29,7 @@ class VehicleTracking(DynamicModelWrapper):
                     x_u_var[3]+h_constant*x_u_var[5]
                 ])
         init_state = np.asarray([0,0,np.pi/2,0],dtype=np.float64).reshape(-1,1)
-        init_input = np.zeros((T,m,1))
+        init_action = np.zeros((T,m,1))
         if is_with_constraints: 
             constr = np.asarray([[-np.inf, np.inf], [-np.inf, np.inf], [-np.inf, np.inf], [-np.inf, np.inf], [-0.6, 0.6], [-3, 3]]) 
         else:
@@ -42,7 +42,7 @@ class VehicleTracking(DynamicModelWrapper):
                             x_u_var = x_u_var, 
                             constr = constr, 
                             init_state = init_state, 
-                            init_input = init_input, 
+                            init_action = init_action, 
                             obj_fun = obj_fun)
 
     def play(self, logger_folder=None, no_iter = -1):
@@ -61,8 +61,8 @@ class VehicleTracking(DynamicModelWrapper):
         car.set_color('C0')
         ax.add_patch(car)
         plt.plot(trajectory[:,0], trajectory[:,1])
-        self.is_interrupted=False
-        for i in range(self.get_T()):
+        self._is_interrupted=False
+        for i in range(self.T):
             angle = trajectory[i,2,0]
             t_start = ax.transData
             x = trajectory[i,0,0] + 1*np.sin(angle)
@@ -75,6 +75,6 @@ class VehicleTracking(DynamicModelWrapper):
             car.set_transform(t_end)
             fig.canvas.draw()
             plt.pause(0.01)
-            if self.is_interrupted:
+            if self._is_interrupted:
                 return
-        self.is_interrupted = True
+        self._is_interrupted = True

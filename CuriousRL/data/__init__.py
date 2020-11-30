@@ -1,3 +1,2 @@
-    """
-        We borrow the data time from pytorch to construct the data module
-    """
+from .data import Data
+from .dataset import Dataset

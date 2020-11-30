@@ -1,14 +1,14 @@
 import matplotlib.patches as patches
 from CuriousRL.algorithm.ilqr_solver import BasiciLQR, LogBarrieriLQR
-from CuriousRL.scenario.dynamic_model import ThreeLinkPlanarManipulator
+from CuriousRL.scenario.dynamic_model import RoboticArmTracking
 import numpy as np
 import matplotlib.pyplot as plt
 
-class ThreeLinkPlanarManipulatorDemo(object):
+class RoboticArmTrackingDemo(object):
     def __init__(self):
-        self.scenario = ThreeLinkPlanarManipulator()
-        fig, self.ax = self.scenario.create_plot(xlim=(-6,6), ylim=(-6,6))
-        self.algo = BasiciLQR(max_line_search=10) # self.algo = LogBarrieriLQR(max_line_search = 10)
+        self.scenario = RoboticArmTracking()
+        fig, self.ax = self.scenario.create_plot(xlim=(-4,4), ylim=(-4,4))
+        self.algo = LogBarrieriLQR(max_line_search = 10) # self.algo = BasiciLQR(max_line_search = 10)
         self.algo.init(self.scenario)
         fig.canvas.mpl_connect('button_press_event', self.onclick)
         self.algo.solve()
@@ -16,6 +16,7 @@ class ThreeLinkPlanarManipulatorDemo(object):
         plt.show()
 
     def onclick(self, event):  
+        
         self.ax.patches = []
         circle = patches.Circle((event.xdata, event.ydata), 0.1, alpha = 0.5)
         circle.set_color('C4')
@@ -30,4 +31,4 @@ class ThreeLinkPlanarManipulatorDemo(object):
         self.scenario.play()
 
 if __name__ == "__main__":
-    ThreeLinkPlanarManipulatorDemo()
+    RoboticArmTrackingDemo()

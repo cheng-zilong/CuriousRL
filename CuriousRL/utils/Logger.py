@@ -21,8 +21,12 @@ class Logger(object):
         _logger.add(sys.stdout, format="<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> - <red>{level}</red>: {message}")
         from datetime import datetime
         self.FOLDER_NAME = datetime.now().strftime("%Y_%m_%d_%H_%M_%S_%f")
-        log_path = os.path.join("logs",  self.FOLDER_NAME, "main.log")
-        self.logger_id = _logger.add(log_path, format="<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> - <red>{level}</red>: {message}", delay=True)
+        self._logger_path = os.path.join("logs",  self.FOLDER_NAME)
+        self._logger_id = _logger.add(os.path.join(self._logger_path, "main.log"), format="<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> - <red>{level}</red>: {message}", delay=True)
+
+    @property
+    def logger_path(self):
+        return self._logger_path
 
     def __new__(cls):  
         """This class uses singleton mode
@@ -35,22 +39,24 @@ class Logger(object):
     def set_is_use_logger(self, is_use_logger):
         self.IS_USE_LOGGER = is_use_logger
         if not is_use_logger:
-            _logger.remove(self.logger_id)
+            _logger.remove(self._logger_id)
+            self._logger_id = None
+            self._logger_path = None
         return self
 
     def set_folder_name(self, folder_name, remove_existing_folder = True):
         # if exists, remove it
-        _logger.remove(self.logger_id)
+        _logger.remove(self._logger_id)
         dirpath = Path('logs', folder_name)
         if dirpath.exists() and dirpath.is_dir():
             if remove_existing_folder:
                 shutil.rmtree(dirpath)
                 _logger.info("[+] The folder \"" + folder_name + "\" exits! Remove it successfully!")
             else:
-                raise Exception("Folder \"" + folder_name + "\" already exists!")
+                self.info("[+] Folder \"" + folder_name + "\" already exists! Logger file will be added!")
         self.FOLDER_NAME = folder_name
-        log_path = os.path.join("logs",  self.FOLDER_NAME, "main.log")
-        self.logger_id = _logger.add(log_path, format="<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> - <red>{level}</red>: {message}",delay=True)
+        self._logger_path = os.path.join("logs",  self.FOLDER_NAME)
+        self._logger_id = _logger.add(os.path.join(self._logger_path, "main.log"), format="<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> - <red>{level}</red>: {message}", delay=True)
         return self
 
     def set_is_save_json(self, is_save_json):
