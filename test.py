@@ -8,9 +8,9 @@ from CuriousRL.scenario.dynamic_model import CartPoleSwingUp1, CartPoleSwingUp2,
 from CuriousRL.utils.Logger import logger
 
 if __name__ == "__main__":
-    logger.set_folder_name("test2").set_is_use_logger(True).set_is_save_json(True)
-    scenario = ThreeLinkPlanarManipulator()
-    LogBarrieriLQR(max_iter=100, line_search_method="vanilla", stopping_method="relative").init(scenario).solve()
+    logger.set_folder_name("test2", remove_existing_folder=False).set_is_use_logger(True).set_is_save_json(True)
+    scenario = RoboticArmTracking()
+    BasiciLQR(max_iter=100, line_search_method="vanilla", stopping_method="relative").init(scenario).solve()
     scenario.play()
 # %%
 # from CuriousRL.data.data import Data

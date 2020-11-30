@@ -23,7 +23,7 @@ class RoboticArmTracking(DynamicModelWrapper):
         # x6: tau1
         # x7: tau2
         
-        n, m = 6, 2 # number of state = 6, number of input = 2, prediction horizon = 500
+        n, m = 6, 2 # number of state = 6, number of action = 2, prediction horizon = 500
         x_u_var = sp.symbols('x_u:8')
         m1 = 1
         m2 = 2
@@ -55,22 +55,25 @@ class RoboticArmTracking(DynamicModelWrapper):
             self.l1*sp.sin(x_u_var[0]) + self.l2*sp.sin(x_u_var[2]),
             self.l1*sp.cos(x_u_var[0]) + self.l2*sp.cos(x_u_var[2])])
         init_state = np.asarray([0, 0, 0, 0, 0, self.l1+self.l2],dtype=np.float64).reshape(-1,1)
-        init_input = np.zeros((T,m,1))
+        init_action = np.zeros((T,m,1))
         if is_with_constraints: 
             constr = np.asarray([[-np.inf, np.inf], [-np.inf, np.inf], [-np.inf, np.inf], [-np.inf, np.inf], [-np.inf, np.inf], [-np.inf, np.inf], [-500, 500], [-500, 500]]) 
         else:
             constr = np.asarray([[-np.inf, np.inf], [-np.inf, np.inf], [-np.inf, np.inf], [-np.inf, np.inf], [-np.inf, np.inf], [-np.inf, np.inf], [-np.inf, np.inf], [-np.inf, np.inf]]) 
         ##### Objective Function ########
-        C_matrix =    np.diag([0.,      10.,     0.,        10.,          10000,         10000,                 0.01,           0.01])
-        r_vector = np.asarray([0.,       0.,     0.,         0.,          x,               y,                   0.,          0.])
-
+        position_var = sp.symbols("p:2") # x and y
+        C_matrix =    np.diag([0.,      10.,     0.,        10.,          10000,                             10000,                 0.01,           0.01])
+        r_vector = np.asarray([0.,       0.,     0.,         0.,          position_var[0],            position_var[1],              0.,              0.])
         obj_fun = (x_u_var - r_vector)@C_matrix@(x_u_var - r_vector) 
+        add_param = np.hstack([x*np.ones((T, 1)), y*np.ones((T, 1))])
         super().__init__(   dynamic_function=dynamic_function, 
                             x_u_var = x_u_var, 
                             constr = constr, 
                             init_state = init_state, 
-                            init_input = init_input, 
-                            obj_fun = obj_fun)
+                            init_action = init_action, 
+                            obj_fun = obj_fun,
+                            add_param_var= position_var,
+                            add_param= add_param)
 
     def play(self, logger_folder=None, no_iter = -1):
         """ If logger_folder exists and the result file is saved, then the specific iteration can be chosen to play the animation. \\
@@ -92,23 +95,24 @@ class RoboticArmTracking(DynamicModelWrapper):
         ax.add_patch(pole2)
         self._is_interrupted=False
         for i in range(self.T):
+            self.play_trajectory_current = trajectory[i,:,0]
             # draw pole1
             t_start = ax.transData
-            x1 = -0.02*np.cos(trajectory[i,0,0])
-            y1 =  0.02*np.sin(trajectory[i,0,0])
+            x1 = -0.02*np.cos(self.play_trajectory_current[0])
+            y1 =  0.02*np.sin(self.play_trajectory_current[0])
             rotate_center = t_start.transform([x1, y1])
             pole1.set_x(x1)
             pole1.set_y(y1)
-            t = mpl.transforms.Affine2D().rotate_around(rotate_center[0], rotate_center[1], -trajectory[i,0,0])
+            t = mpl.transforms.Affine2D().rotate_around(rotate_center[0], rotate_center[1], -self.play_trajectory_current[0])
             t_end = t_start + t
             pole1.set_transform(t_end)
             # draw pole2
-            x2 = self.l1*np.sin(trajectory[i,0,0]) - 0.02*np.cos(trajectory[i,2,0])
-            y2 = self.l1*np.cos(trajectory[i,0,0]) + 0.02*np.sin(trajectory[i,2,0])
+            x2 = self.l1*np.sin(self.play_trajectory_current[0]) - 0.02*np.cos(self.play_trajectory_current[2])
+            y2 = self.l1*np.cos(self.play_trajectory_current[0]) + 0.02*np.sin(self.play_trajectory_current[2])
             rotate_center = t_start.transform([x2, y2])
             pole2.set_x(x2)
             pole2.set_y(y2)
-            t = mpl.transforms.Affine2D().rotate_around(rotate_center[0], rotate_center[1], -trajectory[i,2,0])
+            t = mpl.transforms.Affine2D().rotate_around(rotate_center[0], rotate_center[1], -self.play_trajectory_current[2])
             t_end = t_start + t
             pole2.set_transform(t_end)
             fig.canvas.draw()

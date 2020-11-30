@@ -64,15 +64,14 @@ class LogBarrieriLQR(iLQRWrapper):
             LogBarrieriLQR
         """
         if not scenario.with_model() or scenario.is_action_discrete() or scenario.is_output_image():
-            raise Exception("Scenario \"" + scenario.__class__.__name__ +
-                            "\" cannot learn with LogBarrieriLQR")
+            raise Exception("Scenario \"" + scenario.name + "\" cannot learn with LogBarrieriLQR")
         # Parameters for the model
         constr = scenario.constr
         self._dynamic_model = iLQRDynamicModel(dynamic_function=scenario.dynamic_function,
                                                x_u_var=scenario.x_u_var,
                                                constr=constr,
                                                init_state=scenario.init_state,
-                                               init_input=scenario.init_input,
+                                               init_action=scenario.init_action,
                                                add_param_var=None,
                                                add_param=None)
         self._real_obj_fun = iLQRObjectiveFunction(obj_fun=scenario.obj_fun,

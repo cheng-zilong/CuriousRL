@@ -2,7 +2,7 @@ from __future__ import annotations
 import torch
 from torch import tensor, Tensor
 from typing import Union
-
+import numpy as np 
 
 class Data(object):
     """This is the class for building the reinforcement learning data inlcuding observations, actions, rewards, and done flags.
@@ -24,18 +24,29 @@ class Data(object):
     For example, if the observations are 10 grey images, then the type of observations is Tensor[10,512,512], the type of actions is Tensor[10,5],
     the type of rewards is Tensor[10,1], and the type of done_flag is Tensor[10,1].
 
+    .. note::
+        Numpy.ndarray is also supported in this class, which can be used as the alternative type of Tensor.
+
     :param obs: Observations
-    :type obs: Tensor
+    :type obs: Union[Tensor, numpy.ndarray]
     :param action: Actions
-    :type action: Tensor
+    :type action: Union[Tensor, numpy.ndarray]
     :param reward: Rewards
-    :type reward: Union[Tensor, float]
+    :type reward: Union[Tensor, numpy.ndarray,  float]
     :param done_flag: The flag deciding whether one episode is done.
-    :type done_flag: Union[Tensor, bool]
+    :type done_flag: Union[Tensor, numpy.ndarray, bool]
     """
 
     def __init__(self, obs: Tensor, action: Tensor, reward: Union[Tensor, float], done_flag: Union[Tensor, bool]):
         # data type checking
+        if isinstance(obs, np.ndarray):
+            obs = torch.from_numpy(obs)
+        if isinstance(action, np.ndarray):
+            action = torch.from_numpy(action)
+        if isinstance(reward, np.ndarray):
+            reward = torch.from_numpy(reward)
+        if isinstance(done_flag, np.ndarray):
+            done_flag = torch.from_numpy(done_flag)
         if (not isinstance(reward, Tensor)) and (not isinstance(reward, float)):
             raise Exception("Reward must be in the type of Tensor or float!")
         if (not isinstance(done_flag, Tensor)) and (not isinstance(done_flag, bool)):

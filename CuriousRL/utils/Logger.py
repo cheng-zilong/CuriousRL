@@ -40,6 +40,8 @@ class Logger(object):
         self.IS_USE_LOGGER = is_use_logger
         if not is_use_logger:
             _logger.remove(self._logger_id)
+            self._logger_id = None
+            self._logger_path = None
         return self
 
     def set_folder_name(self, folder_name, remove_existing_folder = True):
@@ -51,7 +53,7 @@ class Logger(object):
                 shutil.rmtree(dirpath)
                 _logger.info("[+] The folder \"" + folder_name + "\" exits! Remove it successfully!")
             else:
-                raise Exception("Folder \"" + folder_name + "\" already exists!")
+                self.info("[+] Folder \"" + folder_name + "\" already exists! Logger file will be added!")
         self.FOLDER_NAME = folder_name
         self._logger_path = os.path.join("logs",  self.FOLDER_NAME)
         self._logger_id = _logger.add(os.path.join(self._logger_path, "main.log"), format="<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> - <red>{level}</red>: {message}", delay=True)

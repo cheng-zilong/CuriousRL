@@ -15,7 +15,7 @@ class CartPoleSwingUp2(DynamicModelWrapper):
     """
     def __init__(self, is_with_constraints = True, T = 150):
         ##### Dynamic Function ########
-        n, m = 5, 1 # number of state = 4, number of input = 1, prediction horizon = 150
+        n, m = 5, 1 # number of state = 4, number of action = 1, prediction horizon = 150
         h_constant = 0.02 # sampling time
         m_c = 1 # car mass
         m_p = 0.1 # pole mass
@@ -34,7 +34,7 @@ class CartPoleSwingUp2(DynamicModelWrapper):
             x_u_var[4] + h_constant*dotdot_theta
         ])
         init_state = np.asarray([0, 0, 0.001, -1, 0],dtype=np.float64).reshape(-1,1)
-        init_input = np.zeros((T, m, 1))
+        init_action = np.zeros((T, m, 1))
         if is_with_constraints: 
             constr = np.asarray([[-1, 1],           [-np.inf, np.inf], [-np.inf, np.inf], [-np.inf, np.inf], [-np.inf, np.inf], [-5, 5]]) 
         else:
@@ -53,7 +53,7 @@ class CartPoleSwingUp2(DynamicModelWrapper):
                             x_u_var = x_u_var, 
                             constr = constr, 
                             init_state = init_state, 
-                            init_input = init_input, 
+                            init_action = init_action, 
                             obj_fun = obj_fun,
                             add_param_var = C_matrix_diag, 
                             add_param = add_param_obj)

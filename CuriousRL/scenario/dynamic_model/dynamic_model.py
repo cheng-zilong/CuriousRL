@@ -16,18 +16,18 @@ class DynamicModelWrapper(ScenarioWrapper):
                 x_u_var, 
                 constr,
                 init_state, 
-                init_input,
+                init_action,
                 obj_fun,
                 add_param_var = None,
                 add_param = None): 
         self._dynamic_function = dynamic_function
         self._x_u_var = x_u_var
         self._init_state = init_state
-        self._init_input = init_input
+        self._init_action = init_action
         self._constr = constr
         self._n = int(init_state.shape[0])
         self._m = int(len(x_u_var) - self._n)
-        self._T = int(init_input.shape[0])
+        self._T = int(init_action.shape[0])
         self._obj_fun = obj_fun
         self._add_param_var = add_param_var
         self._add_param = add_param
@@ -65,8 +65,8 @@ class DynamicModelWrapper(ScenarioWrapper):
         return self._init_state
 
     @property
-    def init_input(self):
-        return self._init_input
+    def init_action(self):
+        return self._init_action
 
     @property
     def n(self):
@@ -95,6 +95,10 @@ class DynamicModelWrapper(ScenarioWrapper):
     @property
     def constr(self):
         return self._constr
+
+    @property
+    def name(self):
+        return self.__class__.__name__
 
     def play(self, logger_folder = None, no_iter = -1):
         raise NotImplementedError
