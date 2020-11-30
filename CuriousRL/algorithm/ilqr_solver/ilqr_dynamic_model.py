@@ -80,6 +80,19 @@ class iLQRDynamicModel(object):
         """
         return self._eval_grad_dynamic_model_static(self._grad_dynamic_function_lamdify, trajectory, self._add_param)
 
+    @property
+    def T(self):
+        return self._T
+    
+    @property
+    def m(self):
+        return self._m
+
+    @property
+    def n(self):
+        return self._n
+
+
     @staticmethod
     @njit
     def _eval_traj_static(dynamic_model_lamdify, init_state, action_traj, add_param, m, n, constr):

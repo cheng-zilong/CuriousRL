@@ -121,14 +121,16 @@ class NNiLQRDynamicModel(iLQRDynamicModel):
         self._m = init_action.shape[1]
         self._T = int(init_action.shape[0])
         self._model = network.cuda()
-        self._F_matrix = Tensor((self._T, self._n, self._m+self._n)).cuda()
+        self._F_matrix = torch.zeros(
+            (self._T, self._n, self._m+self._n)).cuda()
         self.__constant1 = torch.eye(self._n).cuda()
 
     def _process_data(self, dataset) -> Tuple[Tensor, Tensor]:
         data = dataset.fetch_all_data()
         traj = data.obs
-        X = traj[[n for n in range(len(traj)) if ((n+1)%self._T !=0)]]
-        Y = traj[[n+1 for n in range(len(traj)) if ((n+1)%self._T !=0)],0:self._n]
+        X = traj[[n for n in range(len(traj)) if ((n+1) % self._T != 0)]]
+        Y = traj[[n+1 for n in range(len(traj))
+                  if ((n+1) % self._T != 0)], 0:self._n]
         return X, Y
 
     def pretrain(self, dataset_train: Dataset, dataset_vali: Dataset, max_epoch=50000, stopping_criterion=1e-4, lr=1e-3, model_name="NeuralDynamic.model"):
@@ -196,7 +198,8 @@ class NNiLQRDynamicModel(iLQRDynamicModel):
                                     (time_pretraining))
                         torch.save(self._model.state_dict(),
                                    os.path.join(model_path, model_name))
-                        io.savemat(os.path.join(model_path, model_name + "_training.mat"), {"Train_loss": result_train_loss, "Vali_loss": result_vali_loss})
+                        io.savemat(os.path.join(model_path, model_name + "_training.mat"),
+                                   {"Train_loss": result_train_loss, "Vali_loss": result_vali_loss})
                         return
             raise Exception("Maximum epoch in the pretraining is reached!")
         else:
@@ -288,7 +291,7 @@ class NNiLQR(iLQRWrapper):
                  network_class=LargeNetwork,
                  trial_no=100,
                  training_stopping_criterion=1e-4,
-                 iLQR_max_iter=100,
+                 iLQR_max_iter=1000,
                  decay_rate=0.99,
                  decay_rate_max_iters=300,
                  gaussian_filter_sigma=10,
@@ -339,15 +342,12 @@ class NNiLQR(iLQRWrapper):
             raise Exception(
                 "The constraint of dynamic system action must not be inf!")
 
-        action = torch.zeros((scenario.T,1))
-        reward = torch.zeros((scenario.T))
-        done_flag = torch.zeros((scenario.T), dtype=torch.bool)
-        done_flag[-1] = True
         def generate_random_trajectory():
             actions = np.expand_dims(np.random.uniform(action_constr[:, 0], action_constr[:, 1], size=[
                                      scenario.T, len(action_constr[:, 0])]), axis=2)
             traj = self._dynamic_model.eval_traj(action_traj=actions)
-            new_data = Data(obs=traj[:, :,  0], action=action, reward=reward, done_flag=done_flag) # all data is saved in obs
+            new_data = Data(obs=traj[:, :,  0], action=torch.zeros((scenario.T, 1)), reward=torch.zeros(
+                (scenario.T)), done_flag=torch.zeros((scenario.T), dtype=torch.bool))  # all data is saved in obs
             return new_data
         self._dataset_train = Dataset(
             buffer_size=self._trial_no*scenario.T, obs_dim=scenario.n + scenario.m, action_dim=1, is_use_gpu=True)
@@ -359,51 +359,55 @@ class NNiLQR(iLQRWrapper):
             dataset_vali.update_dataset(generate_random_trajectory())
         self._nn_dynamic_model = NNiLQRDynamicModel(
             network, scenario.init_state, scenario.init_action)
-        self._nn_dynamic_model.pretrain(self._dataset_train, dataset_vali,stopping_criterion=self._training_stopping_criterion)
+        self._nn_dynamic_model.pretrain(
+            self._dataset_train, dataset_vali, stopping_criterion=self._training_stopping_criterion)
         return self
 
     def solve(self):
+        trajectory = self._dynamic_model.eval_traj()  # init feasible trajectory
         logger.info("[+ +] Initial Obj.Val.: %.5e" %
-                    (self.get_obj_fun_value()))
-        trajectory = self.get_traj()
+                    (self._obj_fun.eval_obj_fun(trajectory)))
         new_data = []
-        result_obj_val = np.zeros(max_iter)
-        result_iter_time = np.zeros(max_iter)
-        for i in range(int(max_iter)):
+        result_obj_val = np.zeros(self._iLQR_max_iter)
+        result_iter_time = np.zeros(self._iLQR_max_iter)
+        re_train_stopping_criterion = self._training_stopping_criterion
+        for i in range(int(self._iLQR_max_iter)):
             if i == 1:  # skip the compiling time
                 start_time = tm.time()
             iter_start_time = tm.time()
+            C_matrix = self._obj_fun.eval_hessian_obj_fun(trajectory)
+            c_vector = self._obj_fun.eval_grad_obj_fun(trajectory)
             F_matrix = self._nn_dynamic_model.eval_grad_dynamic_model(
                 trajectory)
             F_matrix = gaussian_filter1d(
-                F_matrix, sigma=gaussian_filter_sigma, axis=0)
-            self.update_F_matrix(F_matrix)
-            self.backward_pass()
-            obj_val, isStop = self.forward_pass(
-                max_line_search=max_line_search)
-            if i < decay_rate_max_iters:
-                re_train_stopping_criterion = re_train_stopping_criterion * decay_rate
+                F_matrix, sigma=self._gaussian_filter_sigma, axis=0)
+            K_matrix, k_vector = self.backward_pass(
+                C_matrix, c_vector, F_matrix)
+            trajectory, C_matrix, c_vector, F_matrix, obj_val, isStop = self.forward_pass(
+                trajectory, K_matrix, k_vector)
+            if i < self._decay_rate_max_iters:
+                re_train_stopping_criterion = re_train_stopping_criterion * self._decay_rate
             iter_end_time = tm.time()
             iter_time = iter_end_time-iter_start_time
             logger.info("[+ +] Iter.No.:%3d  Iter.Time:%.3e   Obj.Val.:%.5e" % (
                 i,               iter_time,       obj_val,))
             result_obj_val[i] = obj_val
             result_iter_time[i] = iter_time
-            trajectory = self.get_traj()
             if isStop:
                 if len(new_data) != 0:  # Ensure the optimal trajectroy being in the dataset
                     trajectory_noisy = trajectory
                 else:
                     trajectory_noisy = self.dynamic_model.eval_traj(action_traj=(
-                        trajectory[:, self.dynamic_model.n:]+np.random.normal(0, gaussian_noise_sigma, [self.dynamic_model.T, self.dynamic_model.m, 1])))
+                        trajectory[:, self.dynamic_model.n:]+np.random.normal(0, self._gaussian_noise_sigma, [self.dynamic_model.T, self.dynamic_model.m, 1])))
                 new_data += [trajectory_noisy]
-                self.dataset_train.update_dataset(
-                    new_data[-int(self.dataset_train.Trial_No/5):])  # at most update 20% dataset
-                result_path = os.path.join(logger.logger_path, str(i) + ".mat")
-                io.savemat(result_path, {"optimal_trajectory": self.get_traj(
-                ), "trajectroy_noisy": trajectory_noisy})
+                data = np.concatenate(
+                    new_data[-int(self._trial_no/5):])[:, :, 0]
+                data_len = len(data)
+                self._dataset_train.update_dataset(Data(obs=data, action=torch.zeros(
+                    (data_len, 1)), reward=torch.zeros(data_len), done_flag=torch.zeros(data_len, dtype=torch.bool)))
+                logger.save_to_json(trajectory=trajectory.tolist(), trajectroy_noisy = trajectory_noisy.tolist())
                 self._nn_dynamic_model.retrain(
-                    self.dataset_train, max_epoch=100000, stopping_criterion=re_train_stopping_criterion)
+                    self._dataset_train, max_epoch=100000, stopping_criterion=re_train_stopping_criterion)
                 new_data = []
             else:
                 new_data += [trajectory]
