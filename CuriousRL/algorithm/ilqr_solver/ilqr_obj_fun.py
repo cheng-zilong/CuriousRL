@@ -11,23 +11,23 @@ class iLQRObjectiveFunction(object):
     quadratic objective function is considered, :math:`J=(x-r)^TQ(x-r)`, then we can define :math:`Q` as time variant. In the 
     ``cart_pole_swingup2`` example, the following codes are used:
     ::
-        C_matrix_diag = sp.symbols("c:6")
-        r_vector = np.asarray([0, 0, 0, 1, 0, 0])
-        add_param_obj = np.zeros((T, 6), dtype = np.float64)
-        for tau in range(T):
+       C_matrix_diag = sp.symbols("c:6")
+       r_vector = np.asarray([0, 0, 0, 1, 0, 0])
+       add_param_obj = np.zeros((T, 6), dtype = np.float64)
+       for tau in range(T):
             if tau < T-1:
                 add_param_obj[tau] = np.asarray((0.1, 0.1, 1, 1, 0.1, 1))
             else: 
                 add_param_obj[tau] = np.asarray((0.1, 0.1, 10000, 10000, 1000, 0))
-        obj_fun = (x_u_var- r_vector)@np.diag(np.asarray(C_matrix_diag))@(x_u_var- r_vector)
+       obj_fun = (x_u_var- r_vector)@np.diag(np.asarray(C_matrix_diag))@(x_u_var- r_vector)
 
     Also, in the tracking problem with a time variant reference, the additional parameter also can be used. In the example of 
     ``two_link_planar_manipulator``, the reference is different in each iLQR optimization, therefore we use the additional parameters.
     ::
-        position_var = sp.symbols("p:2") # x and y
-        C_matrix =    np.diag([0.,      10.,     0.,        10.,          10000,                             10000,                 1,           1])
-        r_vector = np.asarray([0.,       0.,     0.,         0.,          position_var[0],            position_var[1],              0.,          0.])
-        obj_fun = (x_u_var - r_vector)@C_matrix@(x_u_var - r_vector) 
+       position_var = sp.symbols("p:2") # x and y
+       C_matrix =    np.diag([0.,      10.,     0.,        10.,          10000,                             10000,                 1,           1])
+       r_vector = np.asarray([0.,       0.,     0.,         0.,          position_var[0],            position_var[1],              0.,          0.])
+       obj_fun = (x_u_var - r_vector)@C_matrix@(x_u_var - r_vector) 
 
     If the additional parameters are not used, leave them to be None. 
 

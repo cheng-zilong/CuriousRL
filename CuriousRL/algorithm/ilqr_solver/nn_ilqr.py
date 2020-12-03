@@ -17,9 +17,7 @@ if TYPE_CHECKING:
     from CuriousRL.data import Data
     from CuriousRL.data import Dataset
     from CuriousRL.scenario.dynamic_model.dynamic_model import DynamicModelWrapper
-
 VALI_DATASET_SIZE = 10
-
 
 class Residual(nn.Module):
     """The Residual block of ResNet."""
@@ -82,7 +80,6 @@ class SmallNetwork(nn.Module):
         x = self.layer(x)
         return x
 
-
 class LargeNetwork(nn.Module):
     """Here is a dummy network that can work well on the vehicle model
     """
@@ -105,7 +102,6 @@ class LargeNetwork(nn.Module):
 class NNiLQRDynamicModel(iLQRDynamicModel):
     """ NNiLQRDynamicModel uses a neural network to fit the dynamic model of a system. This algorithm can only be implemented on a cuda device.
     """
-
     def __init__(self, network, init_state, init_action):
         """ Initialization
             network : nn.module
@@ -127,7 +123,7 @@ class NNiLQRDynamicModel(iLQRDynamicModel):
 
     def _process_data(self, dataset) -> Tuple[Tensor, Tensor]:
         data = dataset.fetch_all_data()
-        traj = data.obs
+        traj = data.state
         X = traj[[n for n in range(len(traj)) if ((n+1) % self._T != 0)]]
         Y = traj[[n+1 for n in range(len(traj))
                   if ((n+1) % self._T != 0)], 0:self._n]
@@ -292,9 +288,9 @@ class NNiLQR(iLQRWrapper):
                  trial_no=100,
                  training_stopping_criterion=1e-4,
                  iLQR_max_iter=1000,
-                 decay_rate=0.99,
-                 decay_rate_max_iters=300,
-                 gaussian_filter_sigma=10,
+                 decay_rate=0.98,
+                 decay_rate_max_iters=200,
+                 gaussian_filter_sigma=5,
                  gaussian_noise_sigma=1):
         super().__init__(stopping_criterion=iLQR_stopping_criterion,
                          max_line_search=max_line_search,
@@ -346,15 +342,14 @@ class NNiLQR(iLQRWrapper):
             actions = np.expand_dims(np.random.uniform(action_constr[:, 0], action_constr[:, 1], size=[
                                      scenario.T, len(action_constr[:, 0])]), axis=2)
             traj = self._dynamic_model.eval_traj(action_traj=actions)
-            new_data = Data(obs=traj[:, :,  0], action=torch.zeros((scenario.T, 1)), reward=torch.zeros(
-                (scenario.T)), done_flag=torch.zeros((scenario.T), dtype=torch.bool))  # all data is saved in obs
+            new_data = Data(state=traj[:, :,  0])  # all data is saved in state
             return new_data
         self._dataset_train = Dataset(
-            buffer_size=self._trial_no*scenario.T, obs_dim=scenario.n + scenario.m, action_dim=1, is_use_gpu=True)
+            buffer_size=self._trial_no*scenario.T, state_dim=scenario.n + scenario.m, action_dim=1)
         for _ in range(self._trial_no):
             self._dataset_train.update_dataset(generate_random_trajectory())
         dataset_vali = Dataset(
-            buffer_size=VALI_DATASET_SIZE*scenario.T, obs_dim=scenario.n + scenario.m, action_dim=1, is_use_gpu=True)
+            buffer_size=VALI_DATASET_SIZE*scenario.T, state_dim=scenario.n + scenario.m, action_dim=1)
         for _ in range(VALI_DATASET_SIZE):
             dataset_vali.update_dataset(generate_random_trajectory())
         self._nn_dynamic_model = NNiLQRDynamicModel(
@@ -365,8 +360,10 @@ class NNiLQR(iLQRWrapper):
 
     def solve(self):
         trajectory = self._dynamic_model.eval_traj()  # init feasible trajectory
+        init_obj = self._obj_fun.eval_obj_fun(trajectory)
         logger.info("[+ +] Initial Obj.Val.: %.5e" %
-                    (self._obj_fun.eval_obj_fun(trajectory)))
+                    (init_obj))
+        self.set_obj_fun_value(init_obj)
         new_data = []
         result_obj_val = np.zeros(self._iLQR_max_iter)
         result_iter_time = np.zeros(self._iLQR_max_iter)
@@ -402,9 +399,7 @@ class NNiLQR(iLQRWrapper):
                 new_data += [trajectory_noisy]
                 data = np.concatenate(
                     new_data[-int(self._trial_no/5):])[:, :, 0]
-                data_len = len(data)
-                self._dataset_train.update_dataset(Data(obs=data, action=torch.zeros(
-                    (data_len, 1)), reward=torch.zeros(data_len), done_flag=torch.zeros(data_len, dtype=torch.bool)))
+                self._dataset_train.update_dataset(Data(state=data))
                 logger.save_to_json(trajectory=trajectory.tolist(), trajectroy_noisy = trajectory_noisy.tolist())
                 self._nn_dynamic_model.retrain(
                     self._dataset_train, max_epoch=100000, stopping_criterion=re_train_stopping_criterion)
@@ -412,7 +407,7 @@ class NNiLQR(iLQRWrapper):
             else:
                 new_data += [trajectory]
         end_time = tm.time()
-        io.savemat(os.path.join(logger_path,  "_result.mat"), {
+        io.savemat(os.path.join(logger.logger_path,  "_result.mat"), {
                    "obj_val": result_obj_val, "iter_time": result_iter_time})
         logger.info("[+ +] Completed! All Time:%.5e" % (end_time-start_time))
 

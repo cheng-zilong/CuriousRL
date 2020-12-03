@@ -16,7 +16,6 @@ class CartPoleSwingUp1(DynamicModelWrapper):
     def __init__(self, is_with_constraints = True, T = 150):
         ##### Dynamic Function ########
         n, m = 4, 1 # number of state = 4, number of action = 1, prediction horizon = 150
-        h_constant = 0.02 # sampling time
         m_c = 1 # car mass
         m_p = 0.1 # pole mass
         l=0.5 # half pole length
@@ -34,7 +33,7 @@ class CartPoleSwingUp1(DynamicModelWrapper):
         init_state = np.asarray([np.pi, 0, 0, 0],dtype=np.float64).reshape(-1,1)
         init_action = np.zeros((T, m, 1))
         if is_with_constraints: 
-            constr = np.asarray([[-np.inf, np.inf], [-np.inf, np.inf], [-np.inf, np.inf], [-1, 1], [-5, 5]]) 
+            constr = np.asarray([[-np.inf, np.inf], [-np.inf, np.inf], [-1, 1],  [-np.inf, np.inf], [-10, 10]]) 
         else:
             constr = np.asarray([[-np.inf, np.inf], [-np.inf, np.inf], [-np.inf, np.inf], [-np.inf, np.inf], [-np.inf, np.inf]]) 
         ##### Objective Function ########
@@ -42,7 +41,7 @@ class CartPoleSwingUp1(DynamicModelWrapper):
         add_param_obj = np.zeros((T, 5), dtype = np.float64)
         for tau in range(T):
             if tau < T-1:
-                add_param_obj[tau] = np.asarray((1, 0.1, 1, 1, 1))
+                add_param_obj[tau] = np.asarray((1, 0.1, 1, 1, 0.1))
             else: 
                 add_param_obj[tau] = np.asarray((10000, 1000, 0, 0, 0)) # terminal objective function
         obj_fun = x_u_var@np.diag(np.asarray(C_matrix_diag))@x_u_var

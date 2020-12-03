@@ -36,7 +36,7 @@ class CartPoleSwingUp2(DynamicModelWrapper):
         init_state = np.asarray([0, 0, 0.001, -1, 0],dtype=np.float64).reshape(-1,1)
         init_action = np.zeros((T, m, 1))
         if is_with_constraints: 
-            constr = np.asarray([[-1, 1],           [-np.inf, np.inf], [-np.inf, np.inf], [-np.inf, np.inf], [-np.inf, np.inf], [-5, 5]]) 
+            constr = np.asarray([[-1, 1],           [-np.inf, np.inf], [-np.inf, np.inf], [-np.inf, np.inf], [-np.inf, np.inf], [-10, 10]]) 
         else:
             constr = np.asarray([[-np.inf, np.inf], [-np.inf, np.inf], [-np.inf, np.inf], [-np.inf, np.inf], [-np.inf, np.inf], [-np.inf, np.inf]]) 
         ##### Objective Function ########
@@ -45,9 +45,9 @@ class CartPoleSwingUp2(DynamicModelWrapper):
         add_param_obj = np.zeros((T, 6), dtype = np.float64)
         for tau in range(T):
             if tau < T-1:
-                add_param_obj[tau] = np.asarray((0.1, 0.1, 1, 1, 0.1, 1))
+                add_param_obj[tau] = np.asarray((0.1, 0.1, 1, 1, 0.1, 0.1))
             else: 
-                add_param_obj[tau] = np.asarray((0.1, 0.1, 10000, 10000, 1000, 0))
+                add_param_obj[tau] = np.asarray((0, 0, 10000, 10000, 1000, 0))
         obj_fun = (x_u_var- r_vector)@np.diag(np.asarray(C_matrix_diag))@(x_u_var- r_vector)
         super().__init__(   dynamic_function=dynamic_function, 
                             x_u_var = x_u_var, 
