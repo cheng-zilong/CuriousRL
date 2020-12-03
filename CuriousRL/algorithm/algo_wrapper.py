@@ -20,7 +20,7 @@ class AlgoWrapper(ABC):
         pass
     
     @abstractmethod
-    def solve(self, is_use_logger, logger_folder, is_save_json):
+    def solve(self):
         pass
 
     def print_params(self):
