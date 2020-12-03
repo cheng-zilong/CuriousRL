@@ -2,8 +2,11 @@
 from __future__ import annotations
 import torch
 import torch.nn as nn
+from torch.autograd import Variable
 import numpy as np
+import gym
 
+from CuriousRL.utils.config import global_config
 from CuriousRL.algorithm import AlgoWrapper
 
 class Net(nn.Module):
@@ -19,10 +22,15 @@ class Net(nn.Module):
             :type n_actions: int
         """
         super(Net, self).__init__()
-        self.fc1 = nn.Linear(n_states, mid_size)
-        self.fc1.weight.data.normal_(0, 0.1)   # initialization
-        self.out = nn.Linear(mid_size, n_states)
-        self.out.weight.data.normal_(0, 0.1)   # initialization
+        # Create a DQN model using CUDA
+        self.device = torch.device("cuda" if global_config.set_is_cuda else "cpu")
+        self.layers = nn.Sequential(
+            nn.Linear(n_states, mid_size),
+            nn.ReLU(),
+            nn.Linear(mid_size, mid_size),
+            nn.ReLU(),
+            nn.Linear(mid_size, n_actions)
+        ).to(self.device)
 
     def forward(self, x):
         """ 
@@ -35,10 +43,8 @@ class Net(nn.Module):
             -----------
             actions_value
         """
-        x = self.fc1(x)
-        x = nn.functional.relu(x)
-        actions_value = self.out(x)
-        return actions_value
+        return self.layers(x)
+        
 
 class DQN(AlgoWrapper):
     """ This class is to build DQN algorithm.
@@ -49,14 +55,14 @@ class DQN(AlgoWrapper):
                 epsilon_greedy=0.9, 
                 gamma_discount=0.9, 
                 target_replace_iter=100, 
-                memory_capacity=2000):
+                memory_capacity=2000, 
+                num_episode=400):
         """
             Parameter
             -----------
-            :param bathch_size: Maximum number of the iLQR iterations.
+            :param bathch_size: bathch size
             :type bathch_size: int
-            :param learning_rate: Decide whether the stopping criterion is checked.
-                If is_check_stop = False, then the maximum number of the iLQR iterations will be reached.
+            :param learning_rate: learning rate
             :type learning_rate: float
             :param epsilon_greedy: epsilon parameter for greedy policy
             :type epsilon_greedy: float
@@ -66,18 +72,19 @@ class DQN(AlgoWrapper):
             :type target_replace_iter: int
             :param memory_capacity: maximum memory capacity
             :type memory_capacity: int
+            :param num_episode: number of episode
+            :type num_episode: int 
         """
         super().__init__(bathch_size=bathch_size, 
                          learning_rate=learning_rate, 
                          epsilon_greedy=epsilon_greedy, 
                          gamma_discount=gamma_discount, 
                          target_replace_iter=target_replace_iter, 
-                         memory_capacity=memory_capacity)
-        self.eval_net, self.target_net = Net(), Net()
+                         memory_capacity=memory_capacity,
+                         num_episode=num_episode )
+        
         self.learn_step_counter = 0                                     # for target updating
         self.memory_counter = 0                                         # for storing memory
-        self.optimizer = torch.optim.Adam(self.eval_net.parameters(), lr=learning_rate)
-        self.loss_func = nn.MSELoss()
     
     def init(self, scenario: DynamicModelWrapper) -> DQN:
         self.n_states = scenario()  # TODO connect to the scenario
@@ -85,27 +92,29 @@ class DQN(AlgoWrapper):
         self.memory = np.zeros((self.kwargs['memory_capacity'], self.n_states*2+2))     # initialize memory_capacity
         self.env_action_shape = 0          # TODO connect to the action space in this scenario
 
-    
+        self.eval_net, self.target_net = Net(self.n_states, self.n_actions), Net(self.n_states, self.n_actions)
+        self.optimizer = torch.optim.Adam(self.eval_net.parameters(), lr=learning_rate)
+        self.loss_func = nn.MSELoss()
+
+
     def _choose_action(self, x):
-        x = torch.unsqueeze(torch.FloatTensor(x), 0)
+        x = Variable(torch.unsqueeze(torch.FloatTensor(x), 0))
         # input only one sample
         if np.random.uniform() < self.kwargs['epsilon_greedy']:   # greedy
             actions_value = self.eval_net.forward(x)
-            action = torch.max(actions_value, 1)[1].data.numpy()
-            action = action[0] if self.env_action_shape == 0 else action.reshape(self.env_action_shape)  # return the argmax index
+            action = torch.max(actions_value, 1)[1].data.numpy()[0]     # return the argmax
         else:   # random
-            action = np.random.randint(0, self.n_states )
-            action = action if self.env_action_shape == 0 else action.reshape(self.env_action_shape)
+            action = np.random.randint(0, self.n_actions)
         return action
     
-    def _store_transition(self, s, a, r, s_):
-        transition = np.hstack((s, [a, r], s_))
+    def _store_transition(self, state, action, reward, next_state):
+        transition = np.hstack((state, [action, reward], next_state))  # 2*n_states+2
         # replace the old memory with new memory
         index = self.memory_counter % self.kwargs['memory_capacity']
         self.memory[index, :] = transition
         self.memory_counter += 1
     
-    def learn(self):
+    def _learn(self):
         # target parameter update
         if self.learn_step_counter % self.kwargs['target_replace_iter'] == 0:
             self.target_net.load_state_dict(self.eval_net.state_dict())
@@ -114,15 +123,15 @@ class DQN(AlgoWrapper):
         # sample batch transitions
         sample_index = np.random.choice(self.kwargs['memory_capacity'], self.kwargs['batch_size'])
         b_memory = self.memory[sample_index, :]
-        b_s = torch.FloatTensor(b_memory[:, :self.n_states])
-        b_a = torch.LongTensor(b_memory[:, self.n_states:self.n_actions+1].astype(int))
-        b_r = torch.FloatTensor(b_memory[:, self.n_states+1:self.n_states+2])
-        b_s_ = torch.FloatTensor(b_memory[:, -self.n_states:])
+        b_state = Variable(torch.FloatTensor(b_memory[:, :self.n_states]))
+        b_action = Variable(torch.LongTensor(b_memory[:, self.n_states:self.n_actions+1].astype(int)))
+        b_reward = Variable(torch.FloatTensor(b_memory[:, self.n_states+1:self.n_states+2]))
+        b_next_state = Variable(torch.FloatTensor(b_memory[:, -self.n_states:]))
 
         # q_eval w.r.t the action in experience
-        q_eval = self.eval_net(b_s).gather(1, b_a)  # shape (batch, 1)
-        q_next = self.target_net(b_s_).detach()     # detach from graph, don't backpropagate
-        q_target = b_r + self.kwargs['gamma_discount'] * q_next.max(1)[0].view(self.kwargs['batch_size'], 1)   # shape (batch, 1)
+        q_eval = self.eval_net(b_state).gather(1, b_action)  # shape (batch, 1)
+        q_next = self.target_net(b_next_state).detach()     # detach from graph, don't backpropagate
+        q_target = b_reward + self.kwargs['gamma_discount'] * q_next.max(1)[0].view(self.kwargs['batch_size'], 1)   # shape (batch, 1)
         loss = self.loss_func(q_eval, q_target)
 
         self.optimizer.zero_grad()
@@ -130,8 +139,33 @@ class DQN(AlgoWrapper):
         self.optimizer.step()
 
     def solve(self):
-        pass
+        for i_episode in range(self.kwargs['num_episode']):
+            state = # TODO connect to scenario (initialization)
+            episode_reward = 0
+            while True:
+                env.render()
+                action = self._choose_action(state)
+
+                # take action
+                next_state, reward, is_check_stop, info = # TODO scenario(action) or env(action)
+
+                # modify the reward
+                x, x_dot, theta, theta_dot = s_
+                r1 = (env.x_threshold - abs(x)) / env.x_threshold - 0.8
+                r2 = (env.theta_threshold_radians - abs(theta)) / env.theta_threshold_radians - 0.5
+                r = r1 + r2
+
+                self._store_transition(state, action, reward, next_state)
+
+                episode_reward += reward
+                if self.memory_counter > self.kwargs['memory_capacity']:
+                    self._learn()
+                    if is_check_stop:
+                        print('episode: ', i_episode, '| episode_reward: ', round(episode_reward, 2))
+
+                if is_check_stop:
+                    break
+                state = next_state
 
 # %%
-aaa = DQN()
 # %%
