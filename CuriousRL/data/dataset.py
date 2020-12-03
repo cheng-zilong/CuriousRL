@@ -3,60 +3,38 @@ from typing import Union
 import torch
 import numpy as np
 from .data import Data
-
+from .data import ACCESSIBLE_KEY
+from CuriousRL.utils.config import global_config
+import copy
 
 class Dataset(object):
     """This is a class for building the dataset in the learning process.
 
     :param buffer_size: The size of the dataset. 
     :type buffer_size: int
-    :param obs_dim: The dimension of the observation data. For example, 
-        the observation dimension of a binary image 
-        is (512, 512). The observation of a cartpole system is (4,) or 4, 
+    :param state_dim: The dimension of the state data. For example, 
+        the state dimension of a binary image 
+        is (512, 512). The state of a cartpole system is (4,) or 4, 
         which includes the position, velocity, angle of the
         pole, and the angular velocity of the pole.
-    :type obs_dim: tuple(int) or int
+    :type state_dim: Tuple(int) or int
     :param action_dim: The dimension of the action data. For example, the 
-        observation dimension of a cartpole system is (1,) or 1, 
-        which is the force applied to the cart.  the observation dimension 
-        of a vehicle system is (2,) or 2, 
+        state dimension of a cartpole system is 1, 
+        which is the force applied to the cart. 
+        The action dimension of a vehicle system is 2, 
         which are the steering angle and the accelaration. 
-    :type action_dim: tuple(int) or int
-    :param is_use_gpu: Whether the dataset is saved on GPU. If True, the 
-        dataset is saved on GPU, ortherwise, on CPU. If None,
-        on GPU if GPU is avaliable and on CPU if GPU is unavaliable.
-    :type is_use_gpu: bool or None, optional
+    :type action_dim: int
     """
 
     def __init__(self, buffer_size,
-                 obs_dim: Union[tuple(int), int],
-                 action_dim: Union[tuple(int), int],
-                 is_use_gpu=None):
+                 state_dim: Union[Tuple(int), int],
+                 action_dim: int):
+        if isinstance(state_dim, int):
+            state_dim = (state_dim,)
         self._buffer_size = buffer_size
-        self._obs_dim = obs_dim
+        self._state_dim = state_dim
         self._action_dim = action_dim
-        if is_use_gpu is None:
-            if torch.cuda.is_available():
-                self._is_use_gpu = True
-            else:
-                self._is_use_gpu = False
-        else:
-            self._is_use_gpu = is_use_gpu
-        if isinstance(obs_dim, int):
-            obs_dim = (obs_dim,)
-        if isinstance(action_dim, int):
-            action_dim = (action_dim,)
-        if self._is_use_gpu:
-            self._obs_set = torch.zeros((buffer_size, *obs_dim)).cuda()
-            self._action_set = torch.zeros((buffer_size, *action_dim)).cuda()
-            self._reward_set = torch.zeros((buffer_size)).cuda()
-            self._done_flag_set = torch.zeros((buffer_size), dtype=torch.bool).cuda()
-        else:
-            self._obs_set = torch.zeros((buffer_size, *obs_dim))
-            self._action_set = torch.zeros((buffer_size, *action_dim))
-            self._reward_set = torch.zeros((buffer_size))
-            self._done_flag_set = torch.zeros((buffer_size), dtype=torch.bool)
-        self._update_index = 0
+        self._update_key = 0
         self._total_update = 0  # totally number of obtained data
 
     def update_dataset(self, data: Data):
@@ -67,32 +45,42 @@ class Dataset(object):
         :param data: New data
         :type data: Data
         """
+        if self._total_update == 0: # If this is the first update, initial the dataset
+            self._dataset_dict = {}
+            for key in data._data_dict:
+                if global_config.is_cuda:
+                    if key == "state" or key == "next_state":
+                        self._dataset_dict[key] = torch.zeros((self._buffer_size, *data._data_dict[key].shape[1:])).cuda()
+                    elif key == "action":
+                        self._dataset_dict[key] = torch.zeros((self._buffer_size, data._data_dict[key].shape[1])).cuda()
+                    elif key == "reward":
+                        self._dataset_dict[key] = torch.zeros((self._buffer_size)).cuda()
+                    elif key == "done_flag":
+                        self._dataset_dict[key] = torch.zeros((self._buffer_size), dtype=torch.bool).cuda()
+                else:
+                    if key == "state" or key == "next_state":
+                        self._dataset_dict[key] = torch.zeros((self._buffer_size, *data._data_dict[key].shape[1:]))
+                    elif key == "action":
+                        self._dataset_dict[key] = torch.zeros((self._buffer_size, data._data_dict[key].shape[1]))
+                    elif key == "reward":
+                        self._dataset_dict[key] = torch.zeros((self._buffer_size))
+                    elif key == "done_flag":
+                        self._dataset_dict[key] = torch.zeros((self._buffer_size), dtype=torch.bool)
         self._total_update += len(data)
         # if not exceed the last data in the dataset
-        if self._update_index+len(data) <= self._buffer_size:
-            self._obs_set[self._update_index:self._update_index +
-                          len(data)] = data.obs
-            self._action_set[self._update_index:self._update_index +
-                             len(data)] = data.action
-            self._reward_set[self._update_index:self._update_index +
-                             len(data)] = data.reward
-            self._done_flag_set[self._update_index:self._update_index +
-                                len(data)] = data.done_flag
-            self._update_index += len(data)
-            if self._update_index == self._buffer_size:
-                self._update_index = 0
+        if self._update_key+len(data) <= self._buffer_size:
+            for key in self._dataset_dict:    
+                self._dataset_dict[key][self._update_key:self._update_key + len(data)] = data._data_dict[key]
+            self._update_key += len(data)
+            if self._update_key == self._buffer_size:
+                self._update_key = 0
         else:  # if exceed
-            exceed_number = len(data) + self._update_index - self._buffer_size
-            self._obs_set[self._update_index:] = data.obs[:self._buffer_size-self._update_index]
-            self._action_set[self._update_index:] = data.action[:self._buffer_size-self._update_index]
-            self._reward_set[self._update_index:] = data.reward[:self._buffer_size-self._update_index]
-            self._done_flag_set[self._update_index:] = data.done_flag[0:self._buffer_size-self._update_index]
-            ##########################
-            self._obs_set[:exceed_number] = data.obs[self._buffer_size-self._update_index:]
-            self._action_set[:exceed_number] = data.action[self._buffer_size-self._update_index:]
-            self._reward_set[:exceed_number] = data.reward[self._buffer_size-self._update_index:]
-            self._done_flag_set[:exceed_number] = data.done_flag[self._buffer_size-self._update_index:]
-            self._update_index = exceed_number
+            exceed_number = len(data) + self._update_key - self._buffer_size
+            for key in self._dataset_dict:
+                self._dataset_dict[key][self._update_key:] = data._data_dict[key][:self._buffer_size-self._update_key]
+                ##########################
+                self._dataset_dict[key][:exceed_number] = data._data_dict[key][self._buffer_size-self._update_key:]
+            self._update_key = exceed_number
 
     def get_current_buffer_size(self):
         """Get the current data buffer size. If the number of the current data is less than the buffer size, 
@@ -120,16 +108,18 @@ class Dataset(object):
         :return: Specific data
         :rtype: Data
         """
-        data = Data(self._obs_set[index], self._action_set[index],
-                    self._reward_set[index], self._done_flag_set[index])
+        temp_dict = {}
+        for key in self._dataset_dict:
+            temp_dict[key] = self._dataset_dict[key][index]
+        data = Data(**temp_dict)
         return data
 
     def fetch_data_randomly(self, num_of_data: int) -> Data:
-        """Return the data with random indexes
+        """Return the data with random keyes
 
         :param num_of_data: How many data will be returned
         :type num_of_data: int
-        :return: Data with random indexes
+        :return: Data with random keyes
         :rtype: Data
         """
         if self._total_update < self._buffer_size:
@@ -144,28 +134,4 @@ class Dataset(object):
                                 "The latter must be less or equal than the former.")
             index = np.random.choice(
                 self._buffer_size, size=num_of_data, replace=False)
-        data = Data(self._obs_set[index], self._action_set[index],
-                    self._reward_set[index], self._done_flag_set[index])
-        return data
-
-    def clone_to_cpu(self) -> Dataset:
-        """Return a new dataset on cpu, with the same data in the current dataset.
-
-        :return: The new dataset on cpu
-        :rtype: Dataset
-        """
-        new_dataset_wrapper = Dataset(
-            self._buffer_size, self._obs_dim, self._action_dim, is_use_gpu=False)
-        new_dataset_wrapper.update_dataset(self.fetch_all_data())
-        return new_dataset_wrapper
-
-    def clone_to_gpu(self) -> Dataset:
-        """Return a new dataset on gpu, with the same data in the current dataset.
-
-        :return: The new dataset on gpu
-        :rtype: Dataset
-        """
-        new_dataset_wrapper = Dataset(
-            self._buffer_size, self._obs_dim, self._action_dim, is_use_gpu=True)
-        new_dataset_wrapper.update_dataset(self.fetch_all_data())
-        return new_dataset_wrapper
+        return self.fetch_data_by_index(index)

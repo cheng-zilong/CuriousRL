@@ -24,5 +24,5 @@ class AlgoWrapper(ABC):
         pass
 
     def print_params(self):
-        for index in self.kwargs:
-            logger.info("[+] " + index + " = " + str(self.kwargs[index]))
+        for key in self.kwargs:
+            logger.info("[+] " + key + " = " + str(self.kwargs[key]))

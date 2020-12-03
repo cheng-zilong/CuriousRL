@@ -70,7 +70,10 @@ class Logger(object):
         if self.IS_SAVE_JSON:
             if not self.IS_USE_LOGGER:
                 raise Exception("Logger must be used to save json. Please call \"logger.set_is_use_logger(True)\".") 
-            file_object = open(os.path.join("logs", self.FOLDER_NAME, "main.json"), 'a')
+            try:
+                file_object = open(os.path.join("logs", self.FOLDER_NAME, "main.json"), 'a')
+            except PermissionError:
+                file_object = open(os.path.join("logs", self.FOLDER_NAME, "main.json"), 'a')
             file_object.write(data_str + "\n")
             file_object.close()
         else:
