@@ -69,6 +69,7 @@ class CarParking(DynamicModelWrapper):
     """
 
     def __init__(self, is_with_constraints=True, T=200):
+        self._action_space = ActionSpace(action_range=[[-0.6, 0.6], [-3, 3]], action_type=["Continuous","Continuous"], action_info=["Steering Angle","Acceleration"])
         ##### Dynamic Function ########
         h_constant = 0.1  # sampling time
         xu_var = sp.symbols('x_u:6')
@@ -145,4 +146,4 @@ class CarParking(DynamicModelWrapper):
     @property
     def action_space(self):
         """ The ``ActionSpace`` of the scenario."""
-        return ActionSpace(action_range=[[-0.6, 0.6], [-3, 3]], action_type=["Continuous","Continuous"], action_info=["Steering Angle","Acceleration"])
+        return self._action_space

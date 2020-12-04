@@ -2,6 +2,7 @@ import numpy as np
 import sympy as sp
 from .dynamic_model import DynamicModelWrapper
 from CuriousRL.utils.Logger import logger
+from CuriousRL.data import ActionSpace
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import matplotlib as mpl
@@ -48,6 +49,7 @@ class TwoLinkPlanarManipulator(DynamicModelWrapper):
     :type y: int, optional
     """
     def __init__(self, T = 100, x = 2, y = 2):
+        self._action_space = ActionSpace(action_range=[[-100, 100], [-100, 100]], action_type=["Continuous", "Continuous"], action_info=["Moment 1", "Moment 2"])
         ##### Dynamic Function ########
         xu_var = sp.symbols('x_u:8')
         h = 0.01 # sampling time
@@ -112,4 +114,4 @@ class TwoLinkPlanarManipulator(DynamicModelWrapper):
     @property
     def action_space(self):
         """ The ``ActionSpace`` of the scenario."""
-        return ActionSpace(action_range=[[-100, 100], [-100, 100]], action_type=["Continuous", "Continuous"], action_info=["Moment 1", "Moment 2"])
+        return self._action_space

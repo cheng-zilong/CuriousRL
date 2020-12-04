@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 class ThreeLinkPlanarManipulatorDemo(object):
     def __init__(self):
         self.scenario = ThreeLinkPlanarManipulator()
-        self.algo = LogBarrieriLQR(max_line_search = 10) # self.algo = BasiciLQR(max_line_search = 10)
+        self.algo = BasiciLQR(max_line_search = 10) # self.algo = BasiciLQR(max_line_search = 10)
         self.algo.init(self.scenario)
         self.algo.solve()
         self.scenario.render()

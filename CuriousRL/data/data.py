@@ -59,16 +59,15 @@ class Data(object):
                 raise Exception(
                     "\"" + key + "\" is not an accessible key in data!")
             if isinstance(kwargs[key], Tensor):
-                self._data_dict[key] = kwargs[key]
+                if self._data_dict[key].dtype != torch.bool:
+                    self._data_dict[key] = kwargs[key].float()
             else:
-                if isinstance(kwargs[key], (float, int, bool)):
-                        kwargs[key] = np.asarray(kwargs[key])
+                kwargs[key] = np.asarray(kwargs[key])
+                self._data_dict[key] = torch.from_numpy(kwargs[key])
+                if self._data_dict[key].dtype != torch.bool:
+                    self._data_dict[key] = self._data_dict[key].float()
                 if global_config.is_cuda:
-                    self._data_dict[key] = torch.from_numpy(
-                        kwargs[key]).cuda()
-                else:
-                    self._data_dict[key] = torch.from_numpy(kwargs[key])
-
+                    self._data_dict[key] = self._data_dict[key].cuda()
         if 'action' in self._data_dict.keys():
             if self._data_dict['action'].dim() == 1:
                 for key in self._data_dict:

@@ -30,7 +30,7 @@ class AlgoWrapper(ABC):
     def print_params(self):
         """Save the parameters of the current scenario in logger.
         """
-        logger.info("[+] Scenario Name:" + str(self.name))
+        logger.info("[+] Algorithm Name:" + str(self.name))
         for key in self.kwargs:
             try:
                 logger.info("[+] " + key + " = " + str(self.kwargs[key].tolist()))

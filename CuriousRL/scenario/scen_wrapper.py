@@ -24,11 +24,6 @@ class ScenarioWrapper(ABC):
     def action_space(self):
         pass
 
-    @property
-    def name(self):
-        """Name of the current scenario."""
-        return self.__class__.__name__
-
     @abstractmethod
     def render(self):
         pass
@@ -46,3 +41,8 @@ class ScenarioWrapper(ABC):
                 logger.info("[+] " + key + " = " + str(self.kwargs[key].tolist()))
             except:
                 logger.info("[+] " + key + " = " + str(self.kwargs[key]))
+
+    @property
+    def name(self):
+        """Name of the current scenario."""
+        return self.__class__.__name__

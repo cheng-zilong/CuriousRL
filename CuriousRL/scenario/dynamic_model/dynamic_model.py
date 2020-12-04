@@ -7,6 +7,7 @@ from CuriousRL.utils.Logger import logger
 import matplotlib.pyplot as plt
 from CuriousRL.data import Data
 from typing import TYPE_CHECKING, List
+import sys
 
 class DynamicModelWrapper(ScenarioWrapper):
     """This is a class for creating dynamic models from the state transfer function 
@@ -124,6 +125,7 @@ class DynamicModelWrapper(ScenarioWrapper):
         self._fig = None
         self._ax = None
         logger.info("[+] Annimation figure is closed!")
+        sys.exit()
 
     @property
     def dynamic_function(self):
@@ -186,6 +188,8 @@ class DynamicModelWrapper(ScenarioWrapper):
         self._tau += 1
         last_state = self._current_state 
         self._current_state = self._dynamic_function_lamdify(np.concatenate([self._current_state, action]))
+        for i, c in enumerate(self._constr[:self._n]):
+            self._current_state[i] = min(max(c[0], self._current_state[i]), c[1]) 
         reward = -self._obj_fun_lamdify(np.concatenate([self._current_state, action]), self._add_param[self._tau-1])
         if self._tau == self._T:
             done_flag = True

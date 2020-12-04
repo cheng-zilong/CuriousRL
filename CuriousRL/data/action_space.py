@@ -36,11 +36,11 @@ class ActionSpace(object):
     def __str__(self):
         string = ""
         for i in range(len(self)):
-            string += self._action_info[i] + " (" + self._action_type[i] + "): " + str(self._action_range[i]) + "\n"
+            string += self._action_info[i] + "\t (" + self._action_type[i] + "): \t" + str(self._action_range[i]) + "\n"
         return string
 
-    def generate_samples(self, sample_number = 1) -> List:
-        """Generate random action data. If the action is continuous, then the number is chosen from a uniform distribution
+    def samples(self, sample_number = 1) -> List[List]:
+        """Generate more than one random action data. If the action is continuous, then the number is chosen from a uniform distribution
         given the lower bound and the upper bound. If the action is discrete, then an index in the discrete action space 
         is chosen randomly. For example, in the gym breakout-v0, there are 4 discrete actions ['NOOP', 'FIRE', 'RIGHT', 'LEFT'].
         Then the return of this methpd with the ``sample_number = 10`` may be [[0],[2],[3],[1],[0],[0],[2],[3],[1],[1]].
@@ -53,16 +53,29 @@ class ActionSpace(object):
         """
         samples = []
         for i in range(sample_number):
-            samples.append([])
-            for j in range(len(self)):
-                if self._action_type[j] == "Continuous":
-                    samples[i].append(np.random.uniform(low = self._action_range[j][0], high = self._action_range[j][1]))
-                elif self._action_type[j] == "Discrete":
-                    samples[i].append(np.random.randint(len(self._action_range[j])))
-                else:
-                    raise Exception("Action type can only be \"Continuous\" or \"Discrete\".")
+            samples.append([self.sample()])
         return samples
 
-        
+    def sample(self) -> List:
+        """Generate one random action data. If the action is continuous, then the number is chosen from a uniform distribution
+        given the lower bound and the upper bound. If the action is discrete, then an index in the discrete action space 
+        is chosen randomly. For example, in the gym breakout-v0, there are 4 discrete actions ['NOOP', 'FIRE', 'RIGHT', 'LEFT'].
+        Then the return of this methoe may be [0].
+
+        :param sample_number: The size of actions, defaults to 1
+        :type sample_number: int, optional
+        :return: The generated actions in the form of a List. The first index is the number of data. The second
+            index is the index of each data. 
+        :rtype: List
+        """
+        sample = []
+        for j in range(len(self)):
+            if self._action_type[j] == "Continuous":
+                sample.append(np.random.uniform(low = self._action_range[j][0], high = self._action_range[j][1]))
+            elif self._action_type[j] == "Discrete":
+                sample.append(np.random.randint(len(self._action_range[j])))
+            else:
+                raise Exception("Action type can only be \"Continuous\" or \"Discrete\".")
+        return sample
 
 

@@ -1,26 +1,25 @@
 
-#%%
+# #%%
+# from CuriousRL.algorithm.ilqr_solver import BasiciLQR, LogBarrieriLQR, NNiLQR
+# from CuriousRL.scenario.dynamic_model import CartPoleSwingUp1, CartPoleSwingUp2, \
+#                                             VehicleTracking, CarParking,\
+#                                             RoboticArmTracking, TwoLinkPlanarManipulator, \
+#                                             ThreeLinkPlanarManipulator
+# from CuriousRL.utils.Logger import logger
+# import matplotlib.pyplot as plt
 
-from CuriousRL.algorithm.ilqr_solver import BasiciLQR, LogBarrieriLQR, NNiLQR
-from CuriousRL.scenario.dynamic_model import CartPoleSwingUp1, CartPoleSwingUp2, \
-                                            VehicleTracking, CarParking,\
-                                            RoboticArmTracking, TwoLinkPlanarManipulator, \
-                                            ThreeLinkPlanarManipulator
-from CuriousRL.utils.Logger import logger
-import matplotlib.pyplot as plt
-
-if __name__ == "__main__":
-    logger.set_folder_name("test2", remove_existing_folder=False).set_is_use_logger(True).set_is_save_json(True)
-    scenario = ThreeLinkPlanarManipulator()
-    # for i in range(1000):
-    #     print (i)
-    #     scenario.step(scenario.action_space.generate_samples(1)[0])
-    #     scenario.render()
-    #     plt.pause(0.001)
-    # print(scenario.action_space)
-    BasiciLQR(line_search_method="vanilla", stopping_method="relative").init(scenario).solve()
-    # NNiLQR(gaussian_noise_sigma=[[0.01], [0.1]], iLQR_max_iter=10, training_stopping_criterion=1e-3).init(scenario).solve()
-    scenario.play()
+# if __name__ == "__main__":
+#     # logger.set_folder_name("test2", remove_existing_folder=False).set_is_use_logger(True).set_is_save_json(True)
+#     scenario = ThreeLinkPlanarManipulator()
+#     # for i in range(1000):
+#     #     scenario.step(scenario.action_space.generate_samples(1)[0])
+#     #     scenario.render()
+#     #     plt.gcf().canvas.set_window_title("Time:" + str(i))
+#     #     plt.pause(0.001)
+#     # print(scenario.action_space)
+#     LogBarrieriLQR(line_search_method="vanilla", stopping_method="relative").init(scenario).solve()
+#     # NNiLQR(gaussian_noise_sigma=[[0.01], [0.1]], iLQR_max_iter=10, training_stopping_criterion=1e-3).init(scenario).solve()
+#     scenario.play()
 # # %%
 # from CuriousRL.data.data import Data
 # from CuriousRL.data.dataset import Dataset
@@ -54,3 +53,35 @@ if __name__ == "__main__":
 #     print(a.generate_samples(100))
 
 # %%
+from CuriousRL.scenario import OpenAIGym
+from CuriousRL.scenario.dynamic_model import CartPoleSwingUp1, CartPoleSwingUp2, \
+                                            VehicleTracking, CarParking,\
+                                            RoboticArmTracking, TwoLinkPlanarManipulator, \
+                                            ThreeLinkPlanarManipulator
+from CuriousRL.utils.Logger import logger
+from CuriousRL.utils.config import global_config
+import matplotlib.pyplot as plt
+import time as tm
+
+if __name__ == "__main__":
+    # logger.set_folder_name("test2", remove_existing_folder=False).set_is_use_logger(True).set_is_save_json(True)
+    # scenario = OpenAIGym('CartPole-v1')
+    scenario = CartPoleSwingUp1()
+    global_config.set_is_cuda(False)
+    scenario.action_space.samples()
+    time1 = tm.time()
+    for i in range(1000):
+        sample = scenario.action_space.sample()
+        data = scenario.step(sample)
+        print("Iter:" + str(i) + "\t Action:" + str(sample)+ "\nData:" + str(data))
+        if data.done_flag == True:
+            break
+        # scenario.render()
+    time2 = tm.time()
+    print(time2- time1)
+    print(scenario.action_space)
+    # BasiciLQR(line_search_method="vanilla", stopping_method="relative").init(scenario).solve()
+    # NNiLQR(gaussian_noise_sigma=[[0.01], [0.1]], iLQR_max_iter=10, training_stopping_criterion=1e-3).init(scenario).solve()
+    # scenario.play()
+# %%
+""

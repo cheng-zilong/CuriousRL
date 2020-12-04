@@ -3,6 +3,7 @@ import numpy as np
 import sympy as sp
 from .dynamic_model import DynamicModelWrapper
 from CuriousRL.utils.Logger import logger
+from CuriousRL.data import ActionSpace
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import matplotlib as mpl
@@ -55,6 +56,7 @@ class CartPoleSwingUp1(DynamicModelWrapper):
     :type T: int, optional
     """
     def __init__(self, is_with_constraints = True, T = 150):
+        self._action_space = ActionSpace(action_range=[[-10, 10]], action_type=["Continuous"], action_info=["Force"])
         ##### Dynamic Function ########
         m_c = 1 # car mass
         m_p = 0.1 # pole mass
@@ -119,6 +121,6 @@ class CartPoleSwingUp1(DynamicModelWrapper):
     @property
     def action_space(self):
         """ The ``ActionSpace`` of the scenario."""
-        return ActionSpace(action_range=[[-10, 10]], action_type=["Continuous"], action_info=["Force"])
+        return self._action_space
 # %%
 
