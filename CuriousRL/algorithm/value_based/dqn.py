@@ -23,7 +23,7 @@ class Net(nn.Module):
         """
         super(Net, self).__init__()
         # Create a DQN model using CUDA
-        self.device = torch.device("cuda" if global_config.set_is_cuda else "cpu")
+        self.device = torch.device("cuda" if False else "cpu")
         self.layers = nn.Sequential(
             nn.Linear(n_states, mid_size),
             nn.ReLU(),
@@ -87,13 +87,14 @@ class DQN(AlgoWrapper):
         self.memory_counter = 0                                         # for storing memory
     
     def init(self, scenario: DynamicModelWrapper) -> DQN:
-        self.n_states = scenario()  # TODO connect to the scenario
-        self.n_actions = scenario() # TODO connect to the scenario
+        self.scenario = scenario
+        self.n_states = scenario.observation_space.shape[0]  # TODO connect to the scenario
+        self.n_actions = scenario.action_space.n # TODO connect to the scenario
         self.memory = np.zeros((self.kwargs['memory_capacity'], self.n_states*2+2))     # initialize memory_capacity
         self.env_action_shape = 0          # TODO connect to the action space in this scenario
 
         self.eval_net, self.target_net = Net(self.n_states, self.n_actions), Net(self.n_states, self.n_actions)
-        self.optimizer = torch.optim.Adam(self.eval_net.parameters(), lr=learning_rate)
+        self.optimizer = torch.optim.Adam(self.eval_net.parameters(), lr=self.kwargs['learning_rate'])
         self.loss_func = nn.MSELoss()
 
 
@@ -121,7 +122,7 @@ class DQN(AlgoWrapper):
         self.learn_step_counter += 1
 
         # sample batch transitions
-        sample_index = np.random.choice(self.kwargs['memory_capacity'], self.kwargs['batch_size'])
+        sample_index = np.random.choice(self.kwargs['memory_capacity'], self.kwargs['bathch_size'])
         b_memory = self.memory[sample_index, :]
         b_state = Variable(torch.FloatTensor(b_memory[:, :self.n_states]))
         b_action = Variable(torch.LongTensor(b_memory[:, self.n_states:self.n_actions+1].astype(int)))
@@ -131,7 +132,7 @@ class DQN(AlgoWrapper):
         # q_eval w.r.t the action in experience
         q_eval = self.eval_net(b_state).gather(1, b_action)  # shape (batch, 1)
         q_next = self.target_net(b_next_state).detach()     # detach from graph, don't backpropagate
-        q_target = b_reward + self.kwargs['gamma_discount'] * q_next.max(1)[0].view(self.kwargs['batch_size'], 1)   # shape (batch, 1)
+        q_target = b_reward + self.kwargs['gamma_discount'] * q_next.max(1)[0].view(self.kwargs['bathch_size'], 1)   # shape (batch, 1)
         loss = self.loss_func(q_eval, q_target)
 
         self.optimizer.zero_grad()
@@ -140,20 +141,20 @@ class DQN(AlgoWrapper):
 
     def solve(self):
         for i_episode in range(self.kwargs['num_episode']):
-            state = # TODO connect to scenario (initialization)
+            state = self.scenario.reset() # TODO connect to scenario (initialization)
             episode_reward = 0
             while True:
-                env.render()
+                # self.scenario.render()
                 action = self._choose_action(state)
 
                 # take action
-                next_state, reward, is_check_stop, info = # TODO scenario(action) or env(action)
+                next_state, reward, is_check_stop, info = self.scenario.step(action) # TODO scenario(action) 
 
                 # modify the reward
-                x, x_dot, theta, theta_dot = s_
-                r1 = (env.x_threshold - abs(x)) / env.x_threshold - 0.8
-                r2 = (env.theta_threshold_radians - abs(theta)) / env.theta_threshold_radians - 0.5
-                r = r1 + r2
+                x, x_dot, theta, theta_dot = next_state
+                r1 = (self.scenario.x_threshold - abs(x)) / self.scenario.x_threshold - 0.8
+                r2 = (self.scenario.theta_threshold_radians - abs(theta)) / self.scenario.theta_threshold_radians - 0.5
+                reward = r1 + r2
 
                 self._store_transition(state, action, reward, next_state)
 
