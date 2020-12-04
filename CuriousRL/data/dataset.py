@@ -5,10 +5,9 @@ import numpy as np
 from .data import Data
 from .data import ACCESSIBLE_KEY
 from CuriousRL.utils.config import global_config
-import copy
 
 class Dataset(object):
-    """This is a class for building the dataset in the learning process.
+    """This is a class for building the dataset in the learning process. 
 
     :param buffer_size: The size of the dataset. 
     :type buffer_size: int
@@ -27,7 +26,7 @@ class Dataset(object):
     """
 
     def __init__(self, buffer_size,
-                 state_dim: Union[Tuple(int), int],
+                 state_dim: Union[Tuple[int, ...], int],
                  action_dim: int):
         if isinstance(state_dim, int):
             state_dim = (state_dim,)

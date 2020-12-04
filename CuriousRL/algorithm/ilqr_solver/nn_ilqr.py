@@ -13,10 +13,11 @@ from scipy.ndimage import gaussian_filter1d
 from .ilqr_dynamic_model import iLQRDynamicModel
 from .ilqr_obj_fun import iLQRObjectiveFunction
 from typing import TYPE_CHECKING
+from CuriousRL.scenario.dynamic_model.dynamic_model import DynamicModelWrapper
 if TYPE_CHECKING:
     from CuriousRL.data import Data
     from CuriousRL.data import Dataset
-    from CuriousRL.scenario.dynamic_model.dynamic_model import DynamicModelWrapper
+
 VALI_DATASET_SIZE = 10
 
 class Residual(nn.Module):
@@ -315,21 +316,18 @@ class NNiLQR(iLQRWrapper):
         self._gaussian_noise_sigma = gaussian_noise_sigma
 
     def init(self, scenario: DynamicModelWrapper) -> BasiciLQR:
-
-        if not scenario.with_model() or scenario.is_action_discrete() or scenario.is_output_image():
+        if not isinstance(scenario, DynamicModelWrapper):
             raise Exception("Scenario \"" + scenario.name +
                             "\" cannot learn with LogBarrieriLQR")
         # Initialize the dynamic_model and objective function
         self._example_name = scenario.name
         self._dynamic_model = iLQRDynamicModel(dynamic_function=scenario.dynamic_function,
-                                               x_u_var=scenario.x_u_var,
+                                               xu_var=scenario.xu_var,
                                                constr=scenario.constr,
                                                init_state=scenario.init_state,
-                                               init_action=scenario.init_action,
-                                               add_param_var=None,
-                                               add_param=None)
+                                               init_action=np.zeros((scenario.T, scenario.m, 1)))
         self._obj_fun = iLQRObjectiveFunction(obj_fun=scenario.obj_fun,
-                                              x_u_var=scenario.x_u_var,
+                                              xu_var=scenario.xu_var,
                                               add_param_var=scenario.add_param_var,
                                               add_param=scenario.add_param)
         network = self._network_class(scenario.n + scenario.m, scenario.n)
@@ -353,7 +351,7 @@ class NNiLQR(iLQRWrapper):
         for _ in range(VALI_DATASET_SIZE):
             dataset_vali.update_dataset(generate_random_trajectory())
         self._nn_dynamic_model = NNiLQRDynamicModel(
-            network, scenario.init_state, scenario.init_action)
+            network, scenario.init_state, np.zeros((scenario.T, scenario.m, 1)))
         self._nn_dynamic_model.pretrain(
             self._dataset_train, dataset_vali, stopping_criterion=self._training_stopping_criterion)
         return self

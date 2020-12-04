@@ -1,11 +1,12 @@
 from __future__ import annotations
 import torch
 from torch import Tensor
-from typing import Union
+from typing import Union, Tuple
 from CuriousRL.utils.config import global_config
 import copy
-ACCESSIBLE_KEY = {'state', 'action', 'next_state', 'reward', 'done_flag'}
+import numpy as np
 
+ACCESSIBLE_KEY = {'state', 'action', 'next_state', 'reward', 'done_flag'}
 
 class Data(object):
     """This is the class for building the reinforcement learning data inlcuding state, action, next_state, reward, and done_flag.
@@ -60,9 +61,11 @@ class Data(object):
             if isinstance(kwargs[key], Tensor):
                 self._data_dict[key] = kwargs[key]
             else:
+                if isinstance(kwargs[key], (float, int, bool)):
+                        kwargs[key] = np.asarray(kwargs[key])
                 if global_config.is_cuda:
                     self._data_dict[key] = torch.from_numpy(
-                        kwargs[key]).float().cuda()
+                        kwargs[key]).cuda()
                 else:
                     self._data_dict[key] = torch.from_numpy(kwargs[key])
 

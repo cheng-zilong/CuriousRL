@@ -7,8 +7,7 @@ from .basic_ilqr import iLQRWrapper
 from .ilqr_obj_fun import iLQRObjectiveFunction
 from .ilqr_dynamic_model import iLQRDynamicModel
 from typing import TYPE_CHECKING
-if TYPE_CHECKING:
-    from CuriousRL.scenario.dynamic_model.dynamic_model import DynamicModelWrapper
+from CuriousRL.scenario.dynamic_model.dynamic_model import DynamicModelWrapper
 
 class LogBarrieriLQR(iLQRWrapper):
     def __init__(self,
@@ -63,22 +62,21 @@ class LogBarrieriLQR(iLQRWrapper):
             Return 
             LogBarrieriLQR
         """
-        if not scenario.with_model() or scenario.is_action_discrete() or scenario.is_output_image():
-            raise Exception("Scenario \"" + scenario.name + "\" cannot learn with LogBarrieriLQR")
+        if not isinstance(scenario, DynamicModelWrapper):
+            raise Exception("Scenario \"" + scenario.name +
+                            "\" cannot learn with LogBarrieriLQR")
         # Parameters for the model
         constr = scenario.constr
         self._dynamic_model = iLQRDynamicModel(dynamic_function=scenario.dynamic_function,
-                                               x_u_var=scenario.x_u_var,
+                                               xu_var=scenario.xu_var,
                                                constr=constr,
                                                init_state=scenario.init_state,
-                                               init_action=scenario.init_action,
-                                               add_param_var=None,
-                                               add_param=None)
+                                               init_action=np.zeros((scenario.T, scenario.m, 1)))
         self._real_obj_fun = iLQRObjectiveFunction(obj_fun=scenario.obj_fun,
-                                                   x_u_var=scenario.x_u_var,
+                                                   xu_var=scenario.xu_var,
                                                    add_param_var=scenario.add_param_var,
                                                    add_param=scenario.add_param)
-        x_u_var = scenario.x_u_var
+        xu_var = scenario.xu_var
         t_var = sp.symbols('t')  # introduce the parameter for log barrier
         add_param_var = scenario.add_param_var
         if add_param_var is None:
@@ -90,9 +88,9 @@ class LogBarrieriLQR(iLQRWrapper):
         # add the inequality constraints to the objective function
         for i, c in enumerate(constr):
             if not np.isinf(c[0]):
-                barrier_obj_fun += (-1/t_var)*sp.log(-(c[0] - x_u_var[i]))
+                barrier_obj_fun += (-1/t_var)*sp.log(-(c[0] - xu_var[i]))
             if not np.isinf(c[1]):
-                barrier_obj_fun += (-1/t_var)*sp.log(-(x_u_var[i] - c[1]))
+                barrier_obj_fun += (-1/t_var)*sp.log(-(xu_var[i] - c[1]))
         if scenario.add_param is None:
             add_param = self._t[0] * \
                 np.ones((self.dynamic_model._T, 1), dtype=np.float64)
@@ -100,7 +98,7 @@ class LogBarrieriLQR(iLQRWrapper):
             add_param = np.hstack(
                 [scenario.add_param, self._t[0]*np.ones((self.dynamic_model._T, 1))])
         self._obj_fun = iLQRObjectiveFunction(obj_fun=barrier_obj_fun,
-                                              x_u_var=x_u_var,
+                                              xu_var=xu_var,
                                               add_param_var=add_param_var,
                                               add_param=add_param)
         return self
@@ -154,3 +152,7 @@ class LogBarrieriLQR(iLQRWrapper):
     @property
     def dynamic_model(self) -> iLQRDynamicModel:
         return self._dynamic_model
+
+    def staticmethod1(cls, a, b, c):
+        print(aaaa)
+    

@@ -23,7 +23,7 @@ class SneakRobotTracking(DynamicModelWrapper):
         # x19, x20, x21, x22: p_x, p_y, dot p_x, dot p_y
         # x23, x24, x25, tau0 .... tau2
 
-        x_u_var = sp.symbols('x_u:26')
+        xu_var = sp.symbols('x_u:26')
         J = 1.6e-3
         m = 1
         l = 0.07
@@ -41,29 +41,28 @@ class SneakRobotTracking(DynamicModelWrapper):
         V = A.T@np.linalg.inv(D@D.T)@A
         mu_t = 1
         mu_n = 3
-        S_theta = np.diag([sp.sin(n) for n in x_u_var[0:4]])
-        C_theta = np.diag([sp.cos(n) for n in x_u_var[0:4]])
+        S_theta = np.diag([sp.sin(n) for n in xu_var[0:4]])
+        C_theta = np.diag([sp.cos(n) for n in xu_var[0:4]])
         H = np.vstack([N.T@S_theta, -N.T@C_theta])
         Q_theta = -np.vstack([   np.hstack([mu_t*C_theta@C_theta + mu_n*S_theta@S_theta, (mu_t-mu_n)*S_theta@C_theta]),
                                 np.hstack([(mu_t-mu_n)*S_theta@C_theta, mu_t*C_theta@C_theta + mu_n*S_theta@S_theta])])
         M = sp.Matrix(J*np.eye(4) + m*(l**2)*S_theta@V@S_theta + m*(l**2)*C_theta@V@C_theta)
         M_inv = sp.Inverse(M)
         W = m*(l**2)*C_theta@V@S_theta - m*(l**2)*S_theta@V@C_theta
-        f_R = l*Q_theta@H@sp.Matrix(x_u_var[6:12])+Q_theta@E@sp.Matrix([x_u_var[31], x_u_var[32]])
-        M_ddot_theta = W@sp.Matrix(x_u_var[6:12]) + l*H.T@f_R + D.T@sp.Matrix(x_u_var[33:38])
+        f_R = l*Q_theta@H@sp.Matrix(xu_var[6:12])+Q_theta@E@sp.Matrix([xu_var[31], xu_var[32]])
+        M_ddot_theta = W@sp.Matrix(xu_var[6:12]) + l*H.T@f_R + D.T@sp.Matrix(xu_var[33:38])
 
 
         theta1_ddot = temp[0,0]
         theta2_ddot = temp[1,0]
         dynamic_function = sp.Array([  
-            x_u_var[0] + h*x_u_var[1],
-            x_u_var[1] + h*theta1_ddot,
-            x_u_var[2] + h*x_u_var[3],
-            x_u_var[3] + h*theta2_ddot,
-            self.l1*sp.sin(x_u_var[0]) + self.l2*sp.sin(x_u_var[2]),
-            self.l1*sp.cos(x_u_var[0]) + self.l2*sp.cos(x_u_var[2])])
+            xu_var[0] + h*xu_var[1],
+            xu_var[1] + h*theta1_ddot,
+            xu_var[2] + h*xu_var[3],
+            xu_var[3] + h*theta2_ddot,
+            self.l1*sp.sin(xu_var[0]) + self.l2*sp.sin(xu_var[2]),
+            self.l1*sp.cos(xu_var[0]) + self.l2*sp.cos(xu_var[2])])
         init_state = np.asarray([0, 0, 0, 0, 0, self.l1+self.l2],dtype=np.float64).reshape(-1,1)
-        init_action = np.zeros((T,m,1))
         if is_with_constraints: 
             constr = np.asarray([[-np.inf, np.inf], [-np.inf, np.inf], [-np.inf, np.inf], [-np.inf, np.inf], [-np.inf, np.inf], [-np.inf, np.inf], [-500, 500], [-500, 500]]) 
         else:
@@ -72,13 +71,13 @@ class SneakRobotTracking(DynamicModelWrapper):
         position_var = sp.symbols("p:2") # x and y
         C_matrix =    np.diag([0.,      10.,     0.,        10.,          10000,                             10000,                 0.01,           0.01])
         r_vector = np.asarray([0.,       0.,     0.,         0.,          position_var[0],            position_var[1],              0.,              0.])
-        obj_fun = (x_u_var - r_vector)@C_matrix@(x_u_var - r_vector) 
+        obj_fun = (xu_var - r_vector)@C_matrix@(xu_var - r_vector) 
         add_param = np.hstack([x*np.ones((T, 1)), y*np.ones((T, 1))])
         super().__init__(   dynamic_function=dynamic_function, 
-                            x_u_var = x_u_var, 
+                            xu_var = xu_var, 
                             constr = constr, 
                             init_state = init_state, 
-                            init_action = init_action, 
+                            T=T,
                             obj_fun = obj_fun,
                             add_param_var= position_var,
                             add_param= add_param)
