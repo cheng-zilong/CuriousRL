@@ -20,9 +20,20 @@ class AlgoWrapper(ABC):
         pass
     
     @abstractmethod
-    def solve(self, is_use_logger, logger_folder, is_save_json):
+    def solve(self):
         pass
 
+    @property
+    def name(self):
+        return self.__class__.__name__
+    
     def print_params(self):
+        """Save the parameters of the current scenario in logger.
+        """
+        logger.info("[+] Algorithm Name:" + str(self.name))
         for key in self.kwargs:
-            logger.info("[+] " + key + " = " + str(self.kwargs[key]))
+            try:
+                logger.info("[+] " + key + " = " + str(self.kwargs[key].tolist()))
+            except:
+                logger.info("[+] " + key + " = " + str(self.kwargs[key]))
+

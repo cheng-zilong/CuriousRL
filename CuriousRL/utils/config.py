@@ -1,9 +1,12 @@
 import numpy as np
 import torch
 
-
-
 class GlobalConfiguration(object):
+    """This is a class for the global configeration. 
+    This is a singleton mode class.
+    ``is_cuda`` is the property for deciding whether the gpu is utilized.
+    ``set_random_see(seed)`` provides global seed for numpy, PyTorch, and etc.
+    """
     def __init__(self):
         self._is_cuda = True
         

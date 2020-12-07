@@ -1,12 +1,12 @@
 from __future__ import annotations
 import time as tm
+import numpy as np
 from CuriousRL.utils.Logger import logger
 from .ilqr_dynamic_model import iLQRDynamicModel
 from .ilqr_obj_fun import iLQRObjectiveFunction
 from .ilqr_wrapper import iLQRWrapper
 from typing import TYPE_CHECKING
-if TYPE_CHECKING:
-    from CuriousRL.scenario.dynamic_model.dynamic_model import DynamicModelWrapper
+from CuriousRL.scenario.dynamic_model.dynamic_model import DynamicModelWrapper
 
 
 class BasiciLQR(iLQRWrapper):
@@ -48,18 +48,17 @@ class BasiciLQR(iLQRWrapper):
         self._is_check_stop = is_check_stop
 
     def init(self, scenario: DynamicModelWrapper) -> BasiciLQR:
-        if not scenario.with_model() or scenario.is_action_discrete() or scenario.is_output_image():
-            raise Exception("Scenario \"" + scenario.name + "\" cannot learn with LogBarrieriLQR")
+        if not isinstance(scenario, DynamicModelWrapper):
+            raise Exception("Scenario \"" + scenario.name +
+                            "\" cannot learn with LogBarrieriLQR")
         # Initialize the dynamic_model and objective function
         self._dynamic_model = iLQRDynamicModel(dynamic_function=scenario.dynamic_function,
-                                              x_u_var=scenario.x_u_var,
+                                              xu_var=scenario.xu_var,
                                               constr=scenario.constr,
                                               init_state=scenario.init_state,
-                                              init_action=scenario.init_action,
-                                              add_param_var=None,
-                                              add_param=None)
+                                              init_action=np.zeros((scenario.T, scenario.m, 1)))
         self._obj_fun = iLQRObjectiveFunction(obj_fun=scenario.obj_fun,
-                                             x_u_var=scenario.x_u_var,
+                                             xu_var=scenario.xu_var,
                                              add_param_var=scenario.add_param_var,
                                              add_param=scenario.add_param)
 

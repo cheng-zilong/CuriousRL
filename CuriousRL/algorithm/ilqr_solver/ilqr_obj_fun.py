@@ -10,45 +10,50 @@ class iLQRObjectiveFunction(object):
     with the terminal penality, the weighing parameters are changed in the last time stamp. To be more specific, if a linear
     quadratic objective function is considered, :math:`J=(x-r)^TQ(x-r)`, then we can define :math:`Q` as time variant. In the 
     ``cart_pole_swingup2`` example, the following codes are used:
+
     ::
-       C_matrix_diag = sp.symbols("c:6")
-       r_vector = np.asarray([0, 0, 0, 1, 0, 0])
-       add_param_obj = np.zeros((T, 6), dtype = np.float64)
-       for tau in range(T):
+
+        C_matrix_diag = sp.symbols("c:6")
+        r_vector = np.asarray([0, 0, 0, 1, 0, 0])
+        add_param_obj = np.zeros((T, 6), dtype = np.float64)
+        for tau in range(T):
             if tau < T-1:
                 add_param_obj[tau] = np.asarray((0.1, 0.1, 1, 1, 0.1, 1))
             else: 
                 add_param_obj[tau] = np.asarray((0.1, 0.1, 10000, 10000, 1000, 0))
-       obj_fun = (x_u_var- r_vector)@np.diag(np.asarray(C_matrix_diag))@(x_u_var- r_vector)
+        obj_fun = (xu_var- r_vector)@np.diag(np.asarray(C_matrix_diag))@(xu_var- r_vector)
 
     Also, in the tracking problem with a time variant reference, the additional parameter also can be used. In the example of 
     ``two_link_planar_manipulator``, the reference is different in each iLQR optimization, therefore we use the additional parameters.
+    
     ::
-       position_var = sp.symbols("p:2") # x and y
-       C_matrix =    np.diag([0.,      10.,     0.,        10.,          10000,                             10000,                 1,           1])
-       r_vector = np.asarray([0.,       0.,     0.,         0.,          position_var[0],            position_var[1],              0.,          0.])
-       obj_fun = (x_u_var - r_vector)@C_matrix@(x_u_var - r_vector) 
+
+        position_var = sp.symbols("p:2") # x and y
+        C_matrix = np.diag([0.,      10.,     0.,        10.,          10000,                             10000,                 1,           1])
+        r_vector = np.asarray([0.,       0.,     0.,         0.,          position_var[0],            position_var[1],              0.,          0.])
+        obj_fun = (xu_var - r_vector)@C_matrix@(xu_var - r_vector) 
+       obj_fun = (xu_var - r_vector)@C_matrix@(xu_var - r_vector) 
 
     If the additional parameters are not used, leave them to be None. 
 
     :param obj_fun: The function of the objetive function.
     :type obj_fun: sympy symbolic expression
-    :param x_u_var: State and action variables in the objective function
-    :type x_u_var: (sympy.symbol, sympy.symbol, ...) 
+    :param xu_var: State and action variables in the objective function
+    :type xu_var: (sympy.symbol, sympy.symbol, ...) 
     :param add_param_var: Introduce the additional variables that are not derived, defaults to None
     :type add_param_var: (sympy.symbol, sympy.symbol, ...), optional
     :param add_param: Give the values to the additioanl variables (totally p variables), defaults to None
     :type add_param: array(T, p), optional
     """
-    def __init__(self, obj_fun, x_u_var, add_param_var = None, add_param = None): 
+    def __init__(self, obj_fun, xu_var, add_param_var = None, add_param = None): 
         if add_param_var is None:
             add_param_var = sp.symbols("no_use")
-        self._obj_fun_lamdify = njit(sp.lambdify([x_u_var,add_param_var], obj_fun, "numpy"))
-        gradient_objective_function_array = sp.derive_by_array(obj_fun, x_u_var)
-        self._grad_obj_fun_lamdify = njit(sp.lambdify([x_u_var, add_param_var], gradient_objective_function_array,"numpy"))       
-        hessian_objective_function_array = sp.derive_by_array(gradient_objective_function_array, x_u_var)
+        self._obj_fun_lamdify = njit(sp.lambdify([xu_var,add_param_var], obj_fun, "numpy"))
+        gradient_objective_function_array = sp.derive_by_array(obj_fun, xu_var)
+        self._grad_obj_fun_lamdify = njit(sp.lambdify([xu_var, add_param_var], gradient_objective_function_array,"numpy"))       
+        hessian_objective_function_array = sp.derive_by_array(gradient_objective_function_array, xu_var)
         # A stupid method to ensure each element in the hessian matrix is in the type of float64
-        self._hessian_obj_fun_lamdify = njit(sp.lambdify([x_u_var, add_param_var], np.asarray(hessian_objective_function_array)+1e-100*np.eye(hessian_objective_function_array.shape[0]),"numpy"))
+        self._hessian_obj_fun_lamdify = njit(sp.lambdify([xu_var, add_param_var], np.asarray(hessian_objective_function_array)+1e-100*np.eye(hessian_objective_function_array.shape[0]),"numpy"))
         self._add_param = add_param
 
     def eval_obj_fun(self, trajectory):
