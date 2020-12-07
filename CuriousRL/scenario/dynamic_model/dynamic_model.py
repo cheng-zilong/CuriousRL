@@ -49,9 +49,9 @@ class DynamicModelWrapper(ScenarioWrapper):
     :param xu_var: State and action variables
     :type xu_var: Tuple[sympy.symbol, ...]
     :param constr: Constraint of each state and action variable
-    :type constr: numpy.ndarray
+    :type constr: numpy.array
     :param init_state: Initial state of the dynamic system
-    :type init_state: numpy.ndarray
+    :type init_state: numpy.array
     :param T: Time horizon
     :type T: int
     :param obj_fun: Objective function :math:`J_\\tau`
@@ -59,7 +59,7 @@ class DynamicModelWrapper(ScenarioWrapper):
     :param add_param_var: Additional parameter variable in the objective function
     :type add_param_var: Tuple[sympy.symbol, ...], optional
     :param add_param: Additional parameter with the first index as time stamp, defaults to None
-    :type add_param: numpy.ndarray, optional
+    :type add_param: numpy.array, optional
     """
     def __init__(self, 
                 dynamic_function: sp.ImmutableDenseNDimArray, 
@@ -100,7 +100,6 @@ class DynamicModelWrapper(ScenarioWrapper):
                         add_param_var = add_param_var,
                         add_param = add_param)
 
-
     def create_plot(self, figsize =(5, 5), xlim = (-6,6), ylim = (-6,6)):
         """Create a plot for annimation.
 
@@ -126,6 +125,10 @@ class DynamicModelWrapper(ScenarioWrapper):
         self._ax = None
         logger.info("[+] Annimation figure is closed!")
         sys.exit()
+
+    @property
+    def current_state(self) -> np.array:
+        return self._current_state
 
     @property
     def dynamic_function(self):
@@ -177,7 +180,7 @@ class DynamicModelWrapper(ScenarioWrapper):
         """Constraints of state and action variables."""
         return self._constr
 
-    def reset(self):
+    def reset(self) -> np.array:
         """Reset the current state to the initial state."""
         self._tau = 0
         self._current_state = self._init_state[:,0]

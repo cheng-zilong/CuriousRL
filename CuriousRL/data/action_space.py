@@ -38,6 +38,18 @@ class ActionSpace(object):
         for i in range(len(self)):
             string += self._action_info[i] + "\t (" + self._action_type[i] + "): \t" + str(self._action_range[i]) + "\n"
         return string
+ 
+    @property
+    def action_range(self):
+        return self._action_range
+
+    @property
+    def action_type(self):
+        return self._action_type
+
+    @property
+    def action_info(self):
+        return self._action_info
 
     def samples(self, sample_number = 1) -> List[List]:
         """Generate more than one random action data. If the action is continuous, then the number is chosen from a uniform distribution

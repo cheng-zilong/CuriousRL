@@ -343,13 +343,13 @@ class NNiLQR(iLQRWrapper):
             new_data = Data(state=traj[:, :,  0])  # all data is saved in state
             return new_data
         self._dataset_train = Dataset(
-            buffer_size=self._trial_no*scenario.T, state_dim=scenario.n + scenario.m, action_dim=1)
+            buffer_size=self._trial_no*scenario.T)
         for _ in range(self._trial_no):
-            self._dataset_train.update_dataset(generate_random_trajectory())
+            self._dataset_train.update(generate_random_trajectory())
         dataset_vali = Dataset(
-            buffer_size=VALI_DATASET_SIZE*scenario.T, state_dim=scenario.n + scenario.m, action_dim=1)
+            buffer_size=VALI_DATASET_SIZE*scenario.T)
         for _ in range(VALI_DATASET_SIZE):
-            dataset_vali.update_dataset(generate_random_trajectory())
+            dataset_vali.update(generate_random_trajectory())
         self._nn_dynamic_model = NNiLQRDynamicModel(
             network, scenario.init_state, np.zeros((scenario.T, scenario.m, 1)))
         self._nn_dynamic_model.pretrain(
@@ -397,7 +397,7 @@ class NNiLQR(iLQRWrapper):
                 new_data += [trajectory_noisy]
                 data = np.concatenate(
                     new_data[-int(self._trial_no/5):])[:, :, 0]
-                self._dataset_train.update_dataset(Data(state=data))
+                self._dataset_train.update(Data(state=data))
                 logger.save_to_json(trajectory=trajectory.tolist(), trajectroy_noisy = trajectory_noisy.tolist())
                 self._nn_dynamic_model.retrain(
                     self._dataset_train, max_epoch=100000, stopping_criterion=re_train_stopping_criterion)

@@ -1,117 +1,134 @@
+from __future__ import annotations
+import torch
+import torch.nn as nn
+import numpy as np
+import gym
+from CuriousRL.scenario import ScenarioWrapper
+from CuriousRL.utils.config import global_config
+from CuriousRL.utils.Logger import logger
+from CuriousRL.algorithm import AlgoWrapper
+from CuriousRL.data import Data, Dataset
+from .example_network import ThreeLayerAllConnetedNetwork, TwoLayerAllConnetedNetwork
+import time as tm
+import copy
+
 class DQNWrapper(AlgoWrapper):
     """ This class is to build DQN algorithm.
 
-    :param bathch_size: bathch size
-    :type bathch_size: int
-    :param learning_rate: learning rate
-    :type learning_rate: float
+    :param batch_size: bathch size
+    :type batch_size: int
+    :param lr: learning rate
+    :type lr: float
     :param epsilon_greedy: epsilon parameter for greedy policy
     :type epsilon_greedy: float
     :param gamma_discount: discount factor for reward function
     :type gamma_discount: float
     :param target_replace_iter: target update frequency
     :type target_replace_iter: int
-    :param memory_capacity: maximum memory capacity
-    :type memory_capacity: int
-    :param num_episode: number of episode
-    :type num_episode: int 
+    :param buffer_size: maximum memory capacity
+    :type buffer_size: int
+    :param max_episode: number of time steps
+    :type max_episode: int 
     """
     def __init__(self, 
-                bathch_size=32, 
-                learning_rate=0.01, 
+                batch_size=128, 
+                lr=0.001, 
                 epsilon_greedy=0.9, 
-                gamma_discount=0.99, 
-                target_replace_iter=100, 
-                memory_capacity=2000, 
-                num_episode=1e5):
-        super().__init__(bathch_size=bathch_size, 
-                         learning_rate=learning_rate, 
+                gamma_discount=0.999, 
+                target_replace_iter=10, 
+                buffer_size=10000, 
+                max_episode=1e3,
+                network_module = None,
+                optimizer_class = None):
+        super().__init__(batch_size=int(batch_size), 
+                         lr=lr, 
                          epsilon_greedy=epsilon_greedy, 
                          gamma_discount=gamma_discount, 
                          target_replace_iter=target_replace_iter, 
-                         memory_capacity=memory_capacity,
-                         num_episode=num_episode)
-        self.learn_step_counter = 0                                     # for target updating
-        self.memory_counter = 0                                         # for storing memory
-    
-    def init(self, scenario: DynamicModelWrapper) -> DQNWrapper:
-        self.scenario = scenario
-        self.n_states = scenario.observation_space.shape[0]  # TODO connect to the scenario
-        self.n_actions = scenario.action_space.n # TODO connect to the scenario
-        self.memory = np.zeros((self.kwargs['memory_capacity'], self.n_states*2+2))     # initialize memory_capacity
-        self.env_action_shape = 0          # TODO connect to the action space in this scenario
+                         buffer_size=buffer_size,
+                         max_episode=int(max_episode),
+                         network_module = network_module,
+                         optimizer_class = optimizer_class)
+        self._step_counter = 0                                     # for target updating
+        self._network_module = network_module
+        self._optimizer_class = optimizer_class
 
-        self.eval_net, self.target_net = Net(self.n_states, self.n_actions), Net(self.n_states, self.n_actions)
-        self.optimizer = torch.optim.Adam(self.eval_net.parameters(), lr=self.kwargs['learning_rate'])
-        self.loss_func = nn.MSELoss()
+        EPS_START = 1
+        EPS_END = 0.05
+        self.EPS_DECAY_LENGTH = int(1e4)
+        self.EPS_LINEAR_STEP = (EPS_START-EPS_END)/self.EPS_DECAY_LENGTH
+        self.EPS_DECAY_EXP = 0.9999
+        self._eps_threshould = EPS_START
 
+    def init(self, scenario: ScenarioWrapper) -> DQNWrapper:
+        if self._network_module == None:
+            if len(scenario.state_shape) > 1:
+                pass # TODO use CNN  
+            else:
+                self._network_module = TwoLayerAllConnetedNetwork
+        self._scenario = scenario
+        self._dataset = Dataset(buffer_size=self.kwargs['buffer_size'])
+        # TODO ALL DISCRETE # FIXME
+        # TODO ALL CONTINUOUS
+        # TODO SOME DISCRETE AND SOME CONTINUOUS 不要出现list，全部用tensor 或者numpy！！！！
+        self._eval_net = self._network_module(self._scenario.current_state.shape[0], len(self._scenario.action_space._action_range[0]))
+        self._target_net = copy.deepcopy(self._eval_net)
+        if global_config.is_cuda:
+            self._eval_net = self._eval_net.cuda()
+            self._target_net = self._target_net.cuda()
+        if self._optimizer_class == None:
+            self._optimizer = torch.optim.SGD(self._eval_net.parameters(), lr = self.kwargs['lr'], weight_decay=1e-4)
+        else:
+            self._optimizer = self._optimizer_class(self._eval_net.parameters(), lr=self.kwargs['lr'])
+        self._loss_func = nn.MSELoss()
+        self._eval_net.eval()
+        self._target_net.eval()
+        return self
 
     def _choose_action(self, x):
-        x = Variable(torch.unsqueeze(torch.FloatTensor(x), 0))
-        # input only one sample
-        if np.random.uniform() < self.kwargs['epsilon_greedy']:   # greedy
-            actions_value = self.eval_net.forward(x)
-            action = torch.max(actions_value, 1)[1].data.numpy()[0]     # return the argmax
-        else:   # random
-            action = np.random.randint(0, self.n_actions)
+        if self._step_counter < self.EPS_DECAY_LENGTH:
+            self._eps_threshould -= self.EPS_LINEAR_STEP
+        elif self._step_counter == self.EPS_DECAY_LENGTH:
+            logger.info("[+] ------------- EXP MODE START ---------------------")
+        else:
+            self._eps_threshould *= self.EPS_DECAY_EXP
+        if np.random.random() > self._eps_threshould:
+            action = self._eval_net(x.unsqueeze(0)).max(1)[1].item()
+        else:
+            action = self._scenario.action_space.sample()
         return action
     
-    def _store_transition(self, state, action, reward, next_state):
-        transition = np.hstack((state, [action, reward], next_state))  # 2*n_states+2
-        # replace the old memory with new memory
-        index = self.memory_counter % self.kwargs['memory_capacity']
-        self.memory[index, :] = transition
-        self.memory_counter += 1
-    
-    def _learn(self):
+    def _learn(self, epi):
         # target parameter update
-        if self.learn_step_counter % self.kwargs['target_replace_iter'] == 0:
-            self.target_net.load_state_dict(self.eval_net.state_dict())
-        self.learn_step_counter += 1
-
-        # sample batch transitions
-        sample_index = np.random.choice(self.kwargs['memory_capacity'], self.kwargs['bathch_size'])
-        b_memory = self.memory[sample_index, :]
-        b_state = Variable(torch.FloatTensor(b_memory[:, :self.n_states]))
-        b_action = Variable(torch.LongTensor(b_memory[:, self.n_states:self.n_actions+1].astype(int)))
-        b_reward = Variable(torch.FloatTensor(b_memory[:, self.n_states+1:self.n_states+2]))
-        b_next_state = Variable(torch.FloatTensor(b_memory[:, -self.n_states:]))
-
-        # q_eval w.r.t the action in experience
-        q_eval = self.eval_net(b_state).gather(1, b_action)  # shape (batch, 1)
-        q_next = self.target_net(b_next_state).detach()     # detach from graph, don't backpropagate
-        q_target = b_reward + self.kwargs['gamma_discount'] * q_next.max(1)[0].view(self.kwargs['bathch_size'], 1)   # shape (batch, 1)
-        loss = self.loss_func(q_eval, q_target)
-
-        self.optimizer.zero_grad()
+        self._eval_net.train()
+        self._target_net.train()
+        if epi % self.kwargs['target_replace_iter'] == 0:
+            self._target_net.load_state_dict(self._eval_net.state_dict())
+        sample_data = self._dataset.fetch_random_data(self.kwargs['batch_size'])
+        q_eval = self._eval_net(sample_data.state).gather(1, sample_data.action.long().unsqueeze(1))
+        with torch.no_grad():
+            q_next = self._target_net(sample_data.next_state)
+            q_target = sample_data.reward + (~sample_data.done_flag) * self.kwargs['gamma_discount'] * q_next.max(1)[0]
+        loss = self._loss_func(q_eval, q_target.unsqueeze(1))
+        self._optimizer.zero_grad()
         loss.backward()
-        self.optimizer.step()
-
+        self._optimizer.step()
+        self._eval_net.eval()
+        self._target_net.eval()
     def solve(self):
-        for i_episode in range(self.kwargs['num_episode']):
-            state = self.scenario.reset() # TODO connect to scenario (initialization)
-            episode_reward = 0
+        for epi in range(self.kwargs['max_episode']):
+            current_state = torch.from_numpy(self._scenario.reset()).float().cuda()
+            episode_reward = 0.
             while True:
-                # self.scenario.render()
-                action = self._choose_action(state)
-
-                # take action
-                next_state, reward, is_check_stop, info = self.scenario.step(action) # TODO scenario(action) 
-
-                # modify the reward
-                x, x_dot, theta, theta_dot = next_state
-                r1 = (self.scenario.x_threshold - abs(x)) / self.scenario.x_threshold - 0.8
-                r2 = (self.scenario.theta_threshold_radians - abs(theta)) / self.scenario.theta_threshold_radians - 0.5
-                reward = r1 + r2
-
-                self._store_transition(state, action, reward, next_state)
-
-                episode_reward += reward
-                if self.memory_counter > self.kwargs['memory_capacity']:
-                    self._learn()
-                    if is_check_stop:
-                        print('episode: ', i_episode, '| episode_reward: ', round(episode_reward, 2))
-
-                if is_check_stop:
+                action = self._choose_action(current_state)
+                new_data = self._scenario.step(action) # take action
+                current_state = new_data.next_state
+                episode_reward += new_data.reward
+                self._scenario.render()
+                self._dataset.update(new_data)
+                if self._dataset.current_buffer_size > self.kwargs['batch_size']:
+                    self._learn(epi)
+                self._step_counter += 1
+                if new_data.done_flag == True:
                     break
-                state = next_state
+            logger.info('[+ +] Episode:%5d'%(epi) + '\t Episode Reward:%5d'%(episode_reward) + '\t Epsilon:%.5f'%(self._eps_threshould))

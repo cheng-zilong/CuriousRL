@@ -4,11 +4,11 @@ import torch.nn as nn
 
 class TwoLayerAllConnetedNetwork(nn.Module):
     def __init__(self, in_dim, out_dim):
-        super(Net, self).__init__()
-        self.mid_layer = max(128, 2*in_dim)
-        self.layers = nn.Sequential(
-            nn.Linear(in_dim, self.mid_layer),
-            nn.BatchNorm1d(self.mid_layer),
+        super().__init__()
+        self._in_dim = in_dim
+        self.mid_layer = max(16, 2*in_dim)
+        self.layers = nn.Sequential(nn.Linear(in_dim, self.mid_layer),
+            # nn.BatchNorm1d(self.mid_layer),
             nn.ReLU(),
             nn.Linear(self.mid_layer, out_dim))
 
@@ -16,21 +16,18 @@ class TwoLayerAllConnetedNetwork(nn.Module):
         return self.layers(x)
 
 class ThreeLayerAllConnetedNetwork(nn.Module):
-    def __init__(self, n_states, n_actions, mid_size=50):
-        super(Net, self).__init__()
-        self.mid_layer = max(128, 2*in_dim)
+    def __init__(self, in_dim, out_dim):
+        super().__init__()
+        self.mid_layer = max(32, 2*in_dim)
         self.layers = nn.Sequential(
             nn.Linear(in_dim, self.mid_layer),
-            nn.BatchNorm1d(self.mid_layer),
             nn.ReLU(),
             nn.Linear(self.mid_layer, self.mid_layer),
-            nn.BatchNorm1d(self.mid_layer),
             nn.ReLU(),
             nn.Linear(self.mid_layer, out_dim))
 
     def forward(self, x):
         return self.layers(x)
-
 
 # class CNNToDo(nn.Module): # TODO
 #     def __init__(self, n_states, n_actions, mid_size=50):
