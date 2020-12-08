@@ -6,7 +6,7 @@
 
 The problem you want to use RL to solve. It can be a robot, a game, a dynamic model or anything.
 
-class ScenarioWrapper
+class Scenario
 
 learn( )
 
@@ -16,7 +16,7 @@ play()
 
 def Scenario(name, algo):
 
-​	return ScenarioWrapper
+​	return Scenario
 
 
 
@@ -47,7 +47,7 @@ example1.learn()
 
 ### OpenaiGym.py
 
-class OpenaiGym(ScenarioWrapper)
+class OpenaiGym(Scenario)
 
 ### DynamicModel.py
 
@@ -55,7 +55,7 @@ def return_dynamic_model(“model_name”):
 
 ​	
 
-class DynamicModel(ScenarioWrapper)
+class DynamicModel(Scenario)
 
 class vehicle(DynamicModel)
 
@@ -67,7 +67,7 @@ class cartpole(DynamicModel)
 
 ## algorithm
 
-class AlgoWrapper()
+class Algorithm()
 
 _init(self)
 
@@ -75,9 +75,9 @@ _init(self)
 
 ### iLQR
 
-ClassicaliLQR(AlgoWrapper)
+ClassicaliLQR(Algorithm)
 
-AdvancediLQR(AlgoWrapper)
+AdvancediLQR(Algorithm)
 
 ### databased
 

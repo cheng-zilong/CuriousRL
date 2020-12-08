@@ -6,7 +6,7 @@ from .ilqr_dynamic_model import iLQRDynamicModel
 from .ilqr_obj_fun import iLQRObjectiveFunction
 from .ilqr_wrapper import iLQRWrapper
 from typing import TYPE_CHECKING
-from CuriousRL.scenario.dynamic_model.dynamic_model import DynamicModelWrapper
+from CuriousRL.scenario.dynamic_model.dynamic_model import DynamicModel
 
 
 class BasiciLQR(iLQRWrapper):
@@ -47,8 +47,8 @@ class BasiciLQR(iLQRWrapper):
         self._max_iter = max_iter
         self._is_check_stop = is_check_stop
 
-    def init(self, scenario: DynamicModelWrapper) -> BasiciLQR:
-        if not isinstance(scenario, DynamicModelWrapper):
+    def init(self, scenario: DynamicModel) -> BasiciLQR:
+        if not isinstance(scenario, DynamicModel):
             raise Exception("Scenario \"" + scenario.name +
                             "\" cannot learn with LogBarrieriLQR")
         # Initialize the dynamic_model and objective function

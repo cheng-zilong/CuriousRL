@@ -1,13 +1,13 @@
 import numpy as np
 import sympy as sp
-from .dynamic_model import DynamicModelWrapper
+from .dynamic_model import DynamicModel
 from CuriousRL.utils.Logger import logger
 from CuriousRL.data import ActionSpace
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import matplotlib as mpl
 
-class VehicleTracking(DynamicModelWrapper):
+class VehicleTracking(DynamicModel):
     """In this example, a vehicle with 4 states and 2 actions, parks at (0, 0) heading to the top.
     We hope that the vechile finally can track the reference :math:`x=-10` with velocity 8 m/s, and heads to the right.
     The states and actions are listed as follows:
@@ -62,7 +62,7 @@ class VehicleTracking(DynamicModelWrapper):
     def render(self):
         """ This method will render an image for the current state."""
         if self._fig is None:
-            super().create_plot(figsize=(8, 2), xlim=(-5,75), ylim=(-15,5))
+            super()._create_plot(figsize=(8, 2), xlim=(-5,75), ylim=(-15,5))
             self._render_car = patches.FancyBboxPatch((0, 0), 3, 2, "round,pad=0.2")
             self._render_car.set_color('C0')
             self._ax.add_patch(self._render_car)

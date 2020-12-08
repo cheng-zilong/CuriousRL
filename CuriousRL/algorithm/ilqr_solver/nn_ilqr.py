@@ -13,7 +13,7 @@ from scipy.ndimage import gaussian_filter1d
 from .ilqr_dynamic_model import iLQRDynamicModel
 from .ilqr_obj_fun import iLQRObjectiveFunction
 from typing import TYPE_CHECKING
-from CuriousRL.scenario.dynamic_model.dynamic_model import DynamicModelWrapper
+from CuriousRL.scenario.dynamic_model.dynamic_model import DynamicModel
 if TYPE_CHECKING:
     from CuriousRL.data import Data
     from CuriousRL.data import Dataset
@@ -315,8 +315,8 @@ class NNiLQR(iLQRWrapper):
         self._gaussian_filter_sigma = gaussian_filter_sigma
         self._gaussian_noise_sigma = gaussian_noise_sigma
 
-    def init(self, scenario: DynamicModelWrapper) -> BasiciLQR:
-        if not isinstance(scenario, DynamicModelWrapper):
+    def init(self, scenario: DynamicModel) -> BasiciLQR:
+        if not isinstance(scenario, DynamicModel):
             raise Exception("Scenario \"" + scenario.name +
                             "\" cannot learn with LogBarrieriLQR")
         # Initialize the dynamic_model and objective function

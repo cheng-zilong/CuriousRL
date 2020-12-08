@@ -2,14 +2,14 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 import numpy as np
 from numba import njit
-from CuriousRL.algorithm.algo_wrapper import AlgoWrapper
+from CuriousRL.algorithm.algorithm import Algorithm
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from .ilqr_obj_fun import iLQRObjectiveFunction
     from .ilqr_dynamic_model import iLQRDynamicModel
 
 
-class iLQRWrapper(AlgoWrapper):
+class iLQRWrapper(Algorithm):
     """This is a wrapper class for all the iLQR algorithms. 
     This class provides several basic methods for the iLQR algorithm realization. 
     This class cannot create algorithm instance. 

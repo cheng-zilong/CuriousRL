@@ -2,14 +2,17 @@ from __future__ import annotations
 import numpy as np
 import sympy as sp
 from numba import njit
-from CuriousRL.scenario.scen_wrapper import ScenarioWrapper
+from CuriousRL.scenario.scenario_wrapper import Scenario
 from CuriousRL.utils.Logger import logger
+from CuriousRL.utils.config import global_config
 import matplotlib.pyplot as plt
 from CuriousRL.data import Data
 from typing import TYPE_CHECKING, List
+import torch
+from torch import Tensor, tensor
 import sys
 
-class DynamicModelWrapper(ScenarioWrapper):
+class DynamicModel(Scenario):
     """This is a class for creating dynamic models from the state transfer function 
     given in the form :math:`x(k+1)=f\\big (x(k),u(k)\\big)`, where :math:`x` is the state, and :math:`u`
     is the action. In each dynamic model scenario, an objective function is required to be given in the form
@@ -100,7 +103,7 @@ class DynamicModelWrapper(ScenarioWrapper):
                         add_param_var = add_param_var,
                         add_param = add_param)
 
-    def create_plot(self, figsize =(5, 5), xlim = (-6,6), ylim = (-6,6)):
+    def _create_plot(self, figsize =(5, 5), xlim = (-6,6), ylim = (-6,6)):
         """Create a plot for annimation.
 
         :param figsize: Annimation figure size, defaults to (5, 5)
@@ -125,10 +128,6 @@ class DynamicModelWrapper(ScenarioWrapper):
         self._ax = None
         logger.info("[+] Annimation figure is closed!")
         sys.exit()
-
-    @property
-    def current_state(self) -> np.array:
-        return self._current_state
 
     @property
     def dynamic_function(self):
@@ -180,27 +179,37 @@ class DynamicModelWrapper(ScenarioWrapper):
         """Constraints of state and action variables."""
         return self._constr
 
-    def reset(self) -> np.array:
+    def reset(self) -> Tensor:
         """Reset the current state to the initial state."""
         self._tau = 0
         self._current_state = self._init_state[:,0]
-        return self._init_state
+        return self.state
 
     def step(self, action: List) -> Data:
         """Evaulate the next state given an action. Return state, action, next_state, reward, done_flag in a ``Data`` instance."""
         self._tau += 1
-        last_state = self._current_state 
+        last_state = self.state 
         self._current_state = self._dynamic_function_lamdify(np.concatenate([self._current_state, action]))
         for i, c in enumerate(self._constr[:self._n]):
             self._current_state[i] = min(max(c[0], self._current_state[i]), c[1]) 
-        reward = -self._obj_fun_lamdify(np.concatenate([self._current_state, action]), self._add_param[self._tau-1])
+        self._reward = -self._obj_fun_lamdify(np.concatenate([self._current_state, action]), self._add_param[self._tau-1])
         if self._tau == self._T:
             done_flag = True
-            data = Data(state = np.asarray(last_state), action = np.asarray(action), next_state = np.asarray(self._current_state), reward = reward, done_flag = done_flag)
+            action = tensor(action, dtype=torch.float).flatten()
+            data = Data(state=last_state,
+                action=action,
+                next_state=self.state,
+                reward=self.reward,
+                done_flag=done_flag)
             self.reset()
         else:
             done_flag = False
-            data = Data(state = np.asarray(last_state), action = np.asarray(action), next_state = np.asarray(self._current_state), reward = reward, done_flag = done_flag)
+            action = tensor(action, dtype=torch.float).flatten()
+            data = Data(state=last_state,
+                action=action,
+                next_state=self.state,
+                reward=self.reward,
+                done_flag=done_flag)
         return data
 
     def play(self, logger_folder=None, no_iter=-1):
@@ -228,4 +237,13 @@ class DynamicModelWrapper(ScenarioWrapper):
                 return
         self._is_interrupted = True
 
-# %%
+    @property
+    def state(self) -> Tensor:
+        if global_config.is_cuda:
+            return tensor(self._current_state, dtype=torch.float).flatten().cuda()
+        else:
+            return tensor(self._current_state, dtype=torch.float).flatten()
+
+    @property
+    def reward(self) -> float:
+        return self._reward

@@ -1,13 +1,13 @@
 import numpy as np
 import sympy as sp
-from .dynamic_model import DynamicModelWrapper
+from .dynamic_model import DynamicModel
 from CuriousRL.utils.Logger import logger
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import matplotlib as mpl
 from scipy.linalg import block_diag 
 
-class SneakRobotTracking(DynamicModelWrapper):
+class SneakRobotTracking(DynamicModel):
     """ In this example, the vehicle packing at 0, 0, heading to the top\\
         We hope the vechile can pack at 0, 0, and head to the right\\
         x0: position_x, x1: position_y, x2: heading anglue, x3: velocity, x4: steering angle, x5: acceleration\\
@@ -92,7 +92,7 @@ class SneakRobotTracking(DynamicModelWrapper):
             no_iter : int
                 The number of iteration to play the animation
         """
-        fig, ax = super().create_plot(figsize=(4, 4), xlim=(-4,4), ylim=(-4,4))
+        fig, ax = super()._create_plot(figsize=(4, 4), xlim=(-4,4), ylim=(-4,4))
         trajectory = np.asarray(logger.read_from_json(logger_folder, no_iter)["trajectory"])
         pole1 = patches.FancyBboxPatch((0, 0), 0.04, self.l1, "round,pad=0.02")
         pole1.set_color('C0')

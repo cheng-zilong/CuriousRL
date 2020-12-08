@@ -1,1 +1,1 @@
-from .dqn_wrapper import DQNWrapper
+from .discrete_dqn import DiscreteDQN
