@@ -81,7 +81,7 @@ class ActionSpace(object):
         :rtype: List
         """
         sample = []
-        for j in range(len(self)):
+        for j in range(len(self._action_range)):
             if self._action_type[j] == "Continuous":
                 sample.append(np.random.uniform(low = self._action_range[j][0], high = self._action_range[j][1]))
             elif self._action_type[j] == "Discrete":

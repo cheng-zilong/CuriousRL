@@ -1,70 +1,47 @@
 import cv2
+cv2.ocl.setUseOpenCL(False)
 import gym
 import numpy as np
 from gym import spaces
 from collections import deque
-from .openai_gym import OpenAIGym
-import torchvision as tv
+from CuriousRL.scenario import ScenarioWrapper, Scenario
 import torch
 from torch import Tensor
 from CuriousRL.utils.config import global_config
 from CuriousRL.data import Data, ActionSpace
-from PIL import Image
-
-
-class AtariScenarioWrapper(OpenAIGym):
-    def __init__(self, env, k = 4, is_clip_reward = True):
-        super().__init__(env = env)
         
-        self.k = k
-        self.is_clip_reward = is_clip_reward
-        self.frames = deque([], maxlen=k)
+class AtariScenarioWrapper(ScenarioWrapper):
+    def __init__(self, scenario:Scenario, stack_num = 4, is_clip_reward = True):
+        super().__init__(scenario = scenario)
+        self._scenario = scenario
+        self._stack_num = stack_num
+        self._is_clip_reward = is_clip_reward
+        self._frames = deque([], maxlen=stack_num)
 
-    def reset(self) -> Tensor:
-        state = super().reset()
-        state = torch.transpose(state, 0, 2)
-        for _ in range(self.k):
-            self.frames.append(state)
-        self._state = torch.cat(tuple(self.frames),dim=0)
-        return self._state
+    def reset(self) -> Scenario:
+        self._scenario.reset()
+        state = torch.transpose(self._scenario.data.next_state, 0, 2)
+        for _ in range(self._stack_num):
+            self._frames.append(state)
+        new_state = torch.cat(tuple(self._frames),dim=0)
+        self.__data = Data(next_state = new_state)
+        return self
 
-    def step(self, action) -> Data:
-        data = super().step(action)
-        #########################################
-        if self.is_clip_reward:
-            self._reward = torch.sign(data.reward)
-        else:
-            self._reward = data.reward
-        #########################################
-        state = torch.transpose(data.state, 0, 2)
-        self.frames.append(state)
-        state = torch.cat(tuple(self.frames),dim=0)
-        last_state = self._state
-        self._state =  state
-        new_data = Data(state=last_state,
-                        action=data.action,
-                        next_state=self._state,
-                        reward=self._reward,
-                        done_flag=data.done_flag)
-        return new_data
+    def step(self, action) -> Scenario:
+        self._scenario.step(action)
+        new_reward = torch.sign(self._scenario.data.reward) if self._is_clip_reward else data.reward # clip reward
+        self._frames.append(torch.transpose(self._scenario.data.next_state, 0, 2))
+        new_state = torch.cat(tuple(self._frames),dim=0)
+        self.__data = Data(state=self.__data.next_state,
+                            action=self._scenario.data.action,
+                            next_state=new_state,
+                            reward=new_reward,
+                            done_flag=self._scenario.data.done_flag)
+        return self
 
     @property
-    def state(self):
-        return self._state
-    
-    @property
-    def reward(self):
-        return self._reward
-
-
-
-
-import numpy as np
-from collections import deque
-import gym
-from gym import spaces
-import cv2
-cv2.ocl.setUseOpenCL(False)
+    def data(self) -> Data:
+        return self.__data
 
 class NoopResetEnv(gym.Wrapper):
     def __init__(self, env, noop_max=30):
@@ -185,15 +162,6 @@ class MaxAndSkipEnv(gym.Wrapper):
         else:
             return self.env.render(mode)
 
-
-class ClipRewardEnv(gym.RewardWrapper):
-    def __init__(self, env):
-        gym.RewardWrapper.__init__(self, env)
-
-    def reward(self, reward):
-        """Bin reward to {+1, 0, -1} by its sign."""
-        return np.sign(reward)
-
 class WarpFrame(gym.ObservationWrapper):
     def __init__(self, env):
         """Warp frames to 84x84 as done in the Nature paper and later work."""
@@ -208,97 +176,14 @@ class WarpFrame(gym.ObservationWrapper):
         frame = cv2.resize(frame, (self.width, self.height), interpolation=cv2.INTER_AREA)
         return frame[:, :, None]
 
-class FrameStack(gym.Wrapper):
-    def __init__(self, env, k):
-        """Stack k last frames.
-
-        Returns lazy array, which is much more memory efficient.
-
-        See Also
-        --------
-        baselines.common.atari_wrappers.LazyFrames
-        """
-        gym.Wrapper.__init__(self, env)
-        self.k = k
-        self.frames = deque([], maxlen=k)
-        shp = env.observation_space.shape
-        # self.observation_space = spaces.Box(low=0, high=255, shape=(shp[0], shp[1], shp[2] * k), dtype=np.uint8)
-        self.observation_space = spaces.Box(low=0, high=255, shape=(shp[0], shp[1], shp[2] * k), dtype=env.observation_space.dtype)
-
-    def reset(self):
-        ob = self.env.reset()
-        for _ in range(self.k):
-            self.frames.append(ob)
-        return self._get_ob()
-
-    def step(self, action):
-        ob, reward, done, info = self.env.step(action)
-        self.frames.append(ob)
-        return self._get_ob(), reward, done, info
-
-    def _get_ob(self):
-        assert len(self.frames) == self.k
-        return LazyFrames(list(self.frames))
-
-class ScaledFloatFrame(gym.ObservationWrapper):
-    def __init__(self, env):
-        gym.ObservationWrapper.__init__(self, env)
-        self.observation_space = gym.spaces.Box(low=0, high=1, shape=env.observation_space.shape, dtype=np.float32)
-
-    def observation(self, observation):
-        # careful! This undoes the memory optimization, use
-        # with smaller replay buffers only.
-        return np.array(observation).astype(np.float32) / 255.0
-
-class LazyFrames(object):
-    def __init__(self, frames):
-        """This object ensures that common frames between the observations are only stored once.
-        It exists purely to optimize memory usage which can be huge for DQN's 1M frames replay
-        buffers.
-
-        This object should only be converted to numpy array before being passed to the model.
-
-        You'd not believe how complex the previous solution was."""
-        self._frames = frames
-        self._out = None
-
-    def _force(self):
-        if self._out is None:
-            self._out = np.concatenate(self._frames, axis=2)
-            self._frames = None
-        return self._out
-
-    def __array__(self, dtype=None):
-        out = self._force()
-        if dtype is not None:
-            out = out.astype(dtype)
-        return out
-
-    def __len__(self):
-        return len(self._force())
-
-    def __getitem__(self, i):
-        return self._force()[i]
-
-def make_atari(env_id):
-    env = gym.make(env_id)
+def wrap_deepmind(env, episode_life=True):
+    """Configure environment for DeepMind-style Atari."""
     assert 'NoFrameskip' in env.spec.id
     env = NoopResetEnv(env, noop_max=30)
     env = MaxAndSkipEnv(env, skip=4)
-    return env
-
-def wrap_deepmind(env, episode_life=True, clip_rewards=True, frame_stack=False, scale=True):
-    """Configure environment for DeepMind-style Atari.
-    """
     if episode_life:
         env = EpisodicLifeEnv(env)
     if 'FIRE' in env.unwrapped.get_action_meanings():
         env = FireResetEnv(env)
     env = WarpFrame(env)
-    if scale:
-        env = ScaledFloatFrame(env)
-    if clip_rewards:
-        env = ClipRewardEnv(env)
-    if frame_stack:
-        env = FrameStack(env, 4)
     return env

@@ -37,18 +37,20 @@ class Data(object):
             if key not in kwargs:
                 self._data_dict[key] = None
                 continue
-            if not isinstance(kwargs[key], Tensor): # if not Tensor, change it to Tensor first
+            if not isinstance(kwargs[key], Tensor): 
+                # if not Tensor, change it to Tensor first
                 kwargs[key] = torch.from_numpy(np.asarray(kwargs[key]))
-            if kwargs[key].dtype != torch.bool and kwargs[key].dtype != torch.int: # if not bool and bot int, transfer it to float
+            if (kwargs[key].dtype != torch.float) and (kwargs[key].dtype not in {torch.bool,torch.int}): 
+                # if not bool and bot int, transfer it to float
                 kwargs[key] = kwargs[key].float() 
-            if key == 'reward' or key == 'done_flag': # if the key is reward or done_flag, ensure that it is a scalar
-                kwargs[key] = kwargs[key].squeeze()
+            if (global_config.is_cuda) and (kwargs[key].get_device() == -1):   
+                # if GPU is used, and kwargs is not on GPU, transfer it to GPU
+                kwargs[key] = kwargs[key].cuda()
+            if key in {'reward', 'done_flag'}: 
+                # if the key is reward or done_flag, ensure that it is a scalar
                 if kwargs[key].dim() != 0:
                     raise Exception('\"' + key + '\" must be a scalar!')
-            if global_config.is_cuda: # if GPU is used, transfer it to cuda, otherwise to gpu
-                self._data_dict[key] = kwargs[key].cuda()
-            else:
-                self._data_dict[key] = kwargs[key].cpu()
+            self._data_dict[key] = kwargs[key]
             
     def __str__(self):
         string = ""
@@ -86,7 +88,7 @@ class Data(object):
         :rtype: Tensor[data_size, \*state_dim]
         """
         return self._data_dict['next_state']
-
+        
     @property
     def reward(self) -> Tensor:
         """Get reward

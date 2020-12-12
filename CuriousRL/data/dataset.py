@@ -17,54 +17,45 @@ class Dataset(object):
     :param buffer_size: The size of the dataset. 
     :type buffer_size: int
     """
+
     def __init__(self, buffer_size):
         self._buffer_size = buffer_size
         self._dataset_dict = {}
         self._update_index = 0
         self._total_update_num = 0  # totally number of obtained data
-
+        self._random_batch_dict = {}
+        self._random_batch_size = None
 
     def _init_dataset_from_data(self, data: Data):
         for key in ACCESSIBLE_KEY:
-            if data._data_dict[key] == None:
+            if data._data_dict[key] is None:
                 self._dataset_dict[key] = None
                 continue
-            if global_config.is_cuda:
-                if key in {"state", "next_state","action"}:
-                    self._dataset_dict[key] = torch.zeros((self._buffer_size, *data._data_dict[key].shape)).cuda()
-                elif key == "reward":
-                    self._dataset_dict[key] = torch.zeros((self._buffer_size)).cuda()
-                elif key == "done_flag":
-                    self._dataset_dict[key] = torch.zeros((self._buffer_size), dtype=torch.bool).cuda()
-            else:
-                if key in {"state", "next_state","action"}:
-                    self._dataset_dict[key] = torch.zeros((self._buffer_size, *data._data_dict[key].shape))
-                elif key == "reward":
-                    self._dataset_dict[key] = torch.zeros((self._buffer_size))
-                elif key == "done_flag":
-                    self._dataset_dict[key] = torch.zeros((self._buffer_size), dtype=torch.bool)
+            if key in {"state", "next_state", "action"}:
+                self._dataset_dict[key] = torch.zeros(
+                    (self._buffer_size, *data._data_dict[key].shape), device=global_config.device)
+            elif key == "reward":
+                self._dataset_dict[key] = torch.zeros((self._buffer_size), device=global_config.device)
+            elif key == "done_flag":
+                self._dataset_dict[key] = torch.zeros(
+                    (self._buffer_size), dtype=torch.bool, device=global_config.device)
 
     def _init_dataset_with_batch(self, batch: Batch):
         for key in ACCESSIBLE_KEY:
-            if batch._batch_dict[key] == None:
+            if batch._batch_dict[key] is None:
                 self._dataset_dict[key] = None
                 continue
-            if global_config.is_cuda:
-                if key in {"state", "next_state","action"}:
-                    self._dataset_dict[key] = torch.zeros((self._buffer_size, *batch._batch_dict[key].shape[1:])).cuda()
-                elif key == "reward":
-                    self._dataset_dict[key] = torch.zeros((self._buffer_size)).cuda()
-                elif key == "done_flag":
-                    self._dataset_dict[key] = torch.zeros((self._buffer_size), dtype=torch.bool).cuda()
-            else:
-                if key in {"state", "next_state","action"}:
-                    self._dataset_dict[key] = torch.zeros((self._buffer_size, *batch._batch_dict[key].shape[1:]))
-                elif key == "reward":
-                    self._dataset_dict[key] = torch.zeros((self._buffer_size))
-                elif key == "done_flag":
-                    self._dataset_dict[key] = torch.zeros((self._buffer_size), dtype=torch.bool)
+            if key in {"state", "next_state", "action"}:
+                self._dataset_dict[key] = torch.zeros(
+                    (self._buffer_size, *batch._batch_dict[key].shape[1:]), device=global_config.device)
+            elif key == "reward":
+                self._dataset_dict[key] = torch.zeros(
+                    (self._buffer_size),device=global_config.device)
+            elif key == "done_flag":
+                self._dataset_dict[key] = torch.zeros(
+                    (self._buffer_size), dtype=torch.bool,device=global_config.device)
 
-    def update(self, new_data: Union[Data, Batch] ):
+    def update(self, new_data: Union[Data, Batch]):
         """Update the new data into the dataset. If the dataset is full, 
         then this method will remove the oldest data in the dataset,
         and update the new data alternatively.
@@ -74,35 +65,38 @@ class Dataset(object):
         :param new_data: New data
         :type new_data: Union[Data, Batch]
         """
-        if self._total_update_num == 0: # If this is the first update, initial the dataset
+        if self._total_update_num == 0:  # If this is the first update, initial the dataset
             if isinstance(new_data, Data):
                 self._init_dataset_from_data(new_data)
             elif isinstance(new_data, Batch):
                 self._init_dataset_with_batch(new_data)
             else:
-                raise Exception('Only support updating dataset from Data and Batch instances.')
+                raise Exception(
+                    'Only support updating dataset from Data and Batch instances.')
         if isinstance(new_data, Batch):
             new_data_len = len(new_data)
             self._total_update_num += new_data_len
             # if not exceed the last data in the dataset
             if self._update_index+new_data_len <= self._buffer_size:
-                for key in ACCESSIBLE_KEY:    
-                    if self._dataset_dict[key] != None:
-                        self._dataset_dict[key][self._update_index:self._update_index + new_data_len] = new_data._batch_dict[key]
+                for key in ACCESSIBLE_KEY:
+                    if self._dataset_dict[key] is not None:
+                        self._dataset_dict[key][self._update_index:self._update_index +
+                                                new_data_len] = new_data._batch_dict[key]
                 self._update_index += new_data_len
                 if self._update_index == self._buffer_size:
                     self._update_index = 0
             else:  # if exceed
                 exceed_number = new_data_len + self._update_index - self._buffer_size
                 for key in ACCESSIBLE_KEY:
-                    if self._dataset_dict[key] != None:
-                        self._dataset_dict[key][self._update_index:] = new_data._batch_dict[key][:self._buffer_size-self._update_index]
+                    if self._dataset_dict[key] is not None:
+                        self._dataset_dict[key][self._update_index:
+                                                ] = new_data._batch_dict[key][:self._buffer_size-self._update_index]
                         self._dataset_dict[key][:exceed_number] = new_data._batch_dict[key][self._buffer_size-self._update_index:]
                 self._update_index = exceed_number
         elif isinstance(new_data, Data):
             self._total_update_num += 1
-            for key in ACCESSIBLE_KEY:    
-                if self._dataset_dict[key] != None:
+            for key in ACCESSIBLE_KEY:
+                if self._dataset_dict[key] is not None:
                     self._dataset_dict[key][self._update_index] = new_data._data_dict[key]
             self._update_index += 1
             if self._update_index == self._buffer_size:
@@ -137,7 +131,7 @@ class Dataset(object):
         """
         temp_dict = {}
         for key in ACCESSIBLE_KEY:
-            if self._dataset_dict[key] != None:
+            if self._dataset_dict[key] is not None:
                 temp_dict[key] = self._dataset_dict[key][index]
         data = Batch(**temp_dict)
         return data
@@ -150,19 +144,28 @@ class Dataset(object):
         :return: Data with random keyes
         :rtype: Data
         """
-        if self._total_update_num < self._buffer_size:
-            if num_of_data > self._total_update_num:
-                raise Exception("The current buffer size is %d. Number of random data size is %d." % (self._total_update_num, num_of_data) +
-                                "The latter must be less or equal than the former.")
-            index = np.random.choice(
-                self._total_update_num, size=num_of_data, replace=False)
-        else:
-            if num_of_data > self._buffer_size:
-                raise Exception("The current buffer size is %d. Number of random data size is %d." % (self._buffer_size, num_of_data) +
-                                "The latter must be less or equal than the former.")
-            index = np.random.choice(
-                self._buffer_size, size=num_of_data, replace=False)
-        return self.fetch_data(index)
+        if self._random_batch_size != num_of_data: # initial random batch
+            self._random_batch_size = num_of_data
+            for key in ACCESSIBLE_KEY:
+                if self._dataset_dict[key] is None:
+                    self._random_batch_dict[key] = None
+                    continue
+                if key in {"state", "next_state", "action"}:
+                    self._random_batch_dict[key] = torch.zeros(
+                        (num_of_data, *self._dataset_dict[key].shape[1:]), device=global_config.device)
+                elif key == "reward":
+                    self._random_batch_dict[key] = torch.zeros(
+                        (num_of_data), device=global_config.device)
+                elif key == "done_flag":
+                    self._random_batch_dict[key] = torch.zeros(
+                        (num_of_data), dtype=torch.bool, device=global_config.device)
+        if num_of_data > self.current_buffer_size:
+            raise Exception("The current buffer size %d < Number of random data size %d." % (self.current_buffer_size, num_of_data))
+        index = torch.randint(high=self.current_buffer_size, size=(num_of_data,), device=global_config.device)
+        for key in ACCESSIBLE_KEY:
+            if self._dataset_dict[key] is not None:
+                self._random_batch_dict[key].copy_(self._dataset_dict[key][index])
+        return Batch(**self._random_batch_dict)
 
     def __len__(self):
         return self._buffer_size

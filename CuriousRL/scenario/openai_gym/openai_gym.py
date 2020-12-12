@@ -40,7 +40,7 @@ class OpenAIGym(Scenario):
             raise Exception('Not support gym space type' +
                             str(type(gym_action_space)))
         super().__init__(env=env)
-
+        
     @property
     def action_space(self) -> ActionSpace:
         return self._action_space
@@ -54,45 +54,31 @@ class OpenAIGym(Scenario):
     @property
     def name(self):
         """Name of the current scenario."""
-        return self._env.unwrapped.spec.id
-
-    ########################################
-    ## Following methods can be override ###
-    ########################################
-    @property
-    def state(self) -> Tensor:
-        return self.__state
+        return "OpenAIGym<" + str(self._env) + ">"
 
     @property
-    def reward(self) -> float:
-        return self.__reward
+    def data(self) -> Data:
+        return self.__data
 
-    def reset(self) -> Tensor:
-        self.__state = tensor(self._env.reset(), dtype=torch.float)
-        if self.__state.ndim == 0:
-            self.__state = self.__state.flatten()
-        if global_config.is_cuda:
-            self.__state = self.__state.cuda()
-        return self.__state
+    def reset(self) -> Scenario:
+        next_state = tensor(self._env.reset(), dtype=torch.float)
+        if next_state.ndim == 0:
+            next_state = next_state.view(-1)
+        self.__data = Data(next_state=next_state)
+        return self
 
-    def step(self, action: List) -> Data:
-        last_state = self.__state
-        if self._action_type == 'Discrete':  # not numpy.array, will be int
-            action = tensor(action, dtype=torch.int).item()
-            state, self.__reward, done, _ = self._env.step(action)
+    def step(self, action: List) -> Scenario:
+        if self._action_type == 'Discrete':
+            next_state, reward, done, _ = self._env.step(action[0])
         elif self._action_type == 'Box':
-            action = tensor(action, dtype=torch.float).flatten()
-            state, self.__reward, done, _ = self._env.step(action)
-        self.__state = tensor(state, dtype=torch.float)
-        if self.__state.ndim == 0:
-            self.__state = self.__state.flatten()
-        if global_config.is_cuda:
-            self.__state = self.__state.cuda()
-        data = Data(state=last_state,
+            action = tensor(action, dtype=torch.float).view(-1)
+            next_state, reward, done, _ = self._env.step(action)
+        next_state = tensor(next_state, dtype=torch.float)
+        if next_state.ndim == 0:
+            next_state = next_state.view(-1)
+        self.__data = Data(state=self.data.next_state,
                     action=action,
-                    next_state=self.__state,
-                    reward=self.__reward,
+                    next_state=next_state,
+                    reward=reward,
                     done_flag=done)
-        if done:
-            self.reset()
-        return data
+        return self

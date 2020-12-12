@@ -4,56 +4,40 @@ from torch import Tensor
 import numpy as np
 from CuriousRL.data import Data, ActionSpace
 from CuriousRL.utils.Logger import logger
+from .scenario import Scenario
 from typing import TYPE_CHECKING, List, Tuple
 
-class ScenarioWrapper(ABC):
-    @property
-    @abstractmethod
-    def state(self) -> Tensor:
-        pass
+class ScenarioWrapper(Scenario):
+    def __init__(self, scenario: Scenario):
+        self.__scenatio = scenario
+        super().__init__(scenario = scenario)
+        pass 
 
     @property
-    @abstractmethod
-    def reward(self) -> float:
-        pass
-
-    @abstractmethod
-    def reset(self)  -> Tensor:
-        pass
-
-    @abstractmethod
-    def step(self, action: List) -> Data:
-        pass
-
-class Scenario(ScenarioWrapper):
-    def __init__(self, **kwargs):
-        self.kwargs = kwargs
-        self.print_params()
-
-    @property
-    @abstractmethod
     def action_space(self) -> ActionSpace:
-        pass
+        return self.__scenatio.action_space
 
-    @abstractmethod
     def render(self) -> None:
-        pass
+        self.__scenatio.render()
 
-    @abstractmethod
     def play(self) -> None:
-        pass
+        self.__scenatio.play()
 
     @property
-    def name(self):
+    def name(self) -> str:
         """Name of the current scenario."""
-        return self.__class__.__name__
+        last_name = self.__scenatio.name
+        return  self.__class__.__name__ + "<" + last_name + ">"
 
-    def print_params(self):
-        """Save the parameters of the current scenario in logger.
-        """
-        logger.info("[+] Scenario Name:" + str(self.name))
-        for key in self.kwargs:
-            try:
-                logger.info("[+] " + key + " = " + str(self.kwargs[key].tolist()))
-            except:
-                logger.info("[+] " + key + " = " + str(self.kwargs[key]))
+    @property
+    @abstractmethod
+    def data(self) -> Data:
+        pass
+
+    @abstractmethod
+    def reset(self)  -> Scenario:
+        pass
+
+    @abstractmethod
+    def step(self, action: List) -> Scenario:
+        pass
