@@ -7,22 +7,24 @@ from CuriousRL.utils.config import global_config
 import numpy as np
 import time
 if __name__ == "__main__":
+    global_config.set_is_cuda(True)
     dataset_test3 = Dataset(buffer_size = 5)
-    global_config.set_is_cuda(False)
-
-    data2 = Data(state = np.random.random((5, 5)), action = np.random.random(10), reward  = np.random.random(1))
-    batch1 = Batch(data2,data2,data2,data2,data2,data2,data2,data2,data2,data2)
-    dataset1 = Dataset(10000)
-    time1 = time.time()
-    for i in range(len(dataset1)):
-        # print(i)
-        dataset1.update(Data(state = np.random.random((5, 5)), action = np.random.random(10), reward  = np.random.random(1)))
-    time2 = time.time()
-    for i in range(len(dataset1)):
-        # print(i)
-        dataset1.fetch_random_data(128)
-    time3= time.time()
-    print(time3-time2)
+    data2 = Data(state = np.random.random((5, 5)), action = np.random.random(10))
+    data3 = Data(state = np.random.random((5, 5)), action = np.random.random(10))
+    batch1 = Batch(data2,data2,data2).share_memmory_()
+    batch1[0] = data3
+    print(batch1._batch_dict["state"])
+    # dataset1 = Dataset(10000)
+    # time1 = time.time()
+    # for i in range(len(dataset1)):
+    #     # print(i)
+    #     dataset1.update(Data(state = np.random.random((5, 5)), action = np.random.random(10), reward  = np.random.random(1)))
+    # time2 = time.time()
+    # for i in range(len(dataset1)):
+    #     # print(i)
+    #     dataset1.fetch_random_data(128)
+    # time3= time.time()
+    # print(time3-time2)
     # data3_from_gym = data1_from_gym.cat(data1_from_gym)
     # dataset1.update_dataset(data3_from_gym)
 # %%

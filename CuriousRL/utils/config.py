@@ -10,7 +10,9 @@ class GlobalConfiguration(object):
     def __init__(self):
         self._is_cuda = True
         self._device = torch.device("cuda:0")
-        
+        self._random_seed = np.random.randint(1)
+        self.set_random_seed(self._random_seed)
+
     def __new__(cls):  
         """This class uses singleton mode
         """
@@ -30,7 +32,11 @@ class GlobalConfiguration(object):
     def set_random_seed(self, seed:bool):
         torch.manual_seed(seed)
         np.random.seed(seed)
-        self.random_seed = seed 
+        self._random_seed = seed 
+
+    @property
+    def random_seed(self, seed):
+        self._random_seed = seed
 
     def set_is_cuda(self, is_cuda:bool, device = None):
         self._is_cuda = is_cuda

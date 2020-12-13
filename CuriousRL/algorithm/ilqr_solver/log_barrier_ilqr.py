@@ -42,10 +42,17 @@ class LogBarrieriLQR(iLQRWrapper):
                          max_line_search=max_line_search,
                          gamma=gamma,
                          line_search_method=line_search_method,
-                         stopping_method=stopping_method,
-                         max_iter=max_iter,
-                         is_check_stop=is_check_stop)
+                         stopping_method=stopping_method)
+        logger.info(stopping_criterion=stopping_criterion,
+                    max_line_search=max_line_search,
+                    gamma=gamma,
+                    line_search_method=line_search_method,
+                    stopping_method=stopping_method,
+                    max_iter=max_iter,
+                    is_check_stop=is_check_stop)
         self._t = t
+        self._max_iter = max_iter
+        self._is_check_stop = is_check_stop
 
     def init(self, scenario: DynamicModel) -> LogBarrieriLQR:
         """ Initialize the iLQR solver class
@@ -119,7 +126,7 @@ class LogBarrieriLQR(iLQRWrapper):
                 add_param = self.get_obj_add_param()
                 add_param[:, -1] = j*np.ones((self.dynamic_model._T))
                 self.set_obj_add_param(add_param)
-            for i in range(self.kwargs['max_iter']):
+            for i in range(self._max_iter):
                 total_iter_no += 1
                 if j == self._t[0] and i == 1:  # skip the compiling time
                     start_time = tm.time()
@@ -135,7 +142,7 @@ class LogBarrieriLQR(iLQRWrapper):
                 logger.info("[+ +] Total Iter.No.%3d   Iter.No.%3d   BWTime:%.3e   FWTime:%.3e   Obj.Val.:%.5e" % (
                     total_iter_no,     i,  backward_time-iter_start_time, forward_time-backward_time, obj))
                 logger.save_to_json(trajectory=self._trajectory.tolist())
-                if isStop and self.kwargs['is_check_stop']:
+                if isStop and self._is_check_stop:
                     self.set_obj_fun_value(np.inf)
                     logger.info(
                         "[+ +] Complete One Inner Loop! The log barrier parameter t is %.5f" % (j) + " in this iteration!")

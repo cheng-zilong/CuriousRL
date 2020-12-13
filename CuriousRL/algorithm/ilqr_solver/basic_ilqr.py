@@ -41,9 +41,14 @@ class BasiciLQR(iLQRWrapper):
                          max_line_search=max_line_search,
                          gamma=gamma,
                          line_search_method=line_search_method,
-                         stopping_method=stopping_method,
-                         max_iter = max_iter,
-                         is_check_stop = is_check_stop)
+                         stopping_method=stopping_method)
+        logger.info(stopping_criterion=stopping_criterion,
+                    max_line_search=max_line_search,
+                    gamma=gamma,
+                    line_search_method=line_search_method,
+                    stopping_method=stopping_method,
+                    max_iter=max_iter,
+                    is_check_stop=is_check_stop)
         self._max_iter = max_iter
         self._is_check_stop = is_check_stop
 
@@ -53,14 +58,14 @@ class BasiciLQR(iLQRWrapper):
                             "\" cannot learn with LogBarrieriLQR")
         # Initialize the dynamic_model and objective function
         self._dynamic_model = iLQRDynamicModel(dynamic_function=scenario.dynamic_function,
-                                              xu_var=scenario.xu_var,
-                                              constr=scenario.constr,
-                                              init_state=scenario.init_state,
-                                              init_action=np.zeros((scenario.T, scenario.m, 1)))
+                                               xu_var=scenario.xu_var,
+                                               constr=scenario.constr,
+                                               init_state=scenario.init_state,
+                                               init_action=np.zeros((scenario.T, scenario.m, 1)))
         self._obj_fun = iLQRObjectiveFunction(obj_fun=scenario.obj_fun,
-                                             xu_var=scenario.xu_var,
-                                             add_param_var=scenario.add_param_var,
-                                             add_param=scenario.add_param)
+                                              xu_var=scenario.xu_var,
+                                              add_param_var=scenario.add_param_var,
+                                              add_param=scenario.add_param)
 
         return self
 

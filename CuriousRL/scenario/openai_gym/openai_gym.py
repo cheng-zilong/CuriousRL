@@ -3,6 +3,7 @@ from CuriousRL.scenario import Scenario
 from torch import Tensor, tensor
 import torch
 from CuriousRL.utils.config import global_config
+from CuriousRL.utils.Logger import logger
 from CuriousRL.data import ActionSpace, Data
 import gym
 import numpy as np
@@ -11,6 +12,8 @@ from typing import TYPE_CHECKING, List, Tuple
 class OpenAIGym(Scenario):
     def __init__(self, env: gym.Env):
         self._env = env
+        obs = env.reset()
+        self._state_shape = obs.shape
         if isinstance(self._env.action_space, gym.spaces.Discrete):
             self._action_type = 'Discrete'
             try:
@@ -39,11 +42,15 @@ class OpenAIGym(Scenario):
         else:
             raise Exception('Not support gym space type' +
                             str(type(gym_action_space)))
-        super().__init__(env=env)
+        logger.info(env=env)
         
     @property
     def action_space(self) -> ActionSpace:
         return self._action_space
+
+    @property
+    def state_shape(self) -> Tuple:
+        return self._state_shape
 
     def render(self):
         self._env.render()
@@ -57,7 +64,7 @@ class OpenAIGym(Scenario):
         return "OpenAIGym<" + str(self._env) + ">"
 
     @property
-    def data(self) -> Data:
+    def elem(self) -> Data:
         return self.__data
 
     def reset(self) -> Scenario:
@@ -76,7 +83,7 @@ class OpenAIGym(Scenario):
         next_state = tensor(next_state, dtype=torch.float)
         if next_state.ndim == 0:
             next_state = next_state.view(-1)
-        self.__data = Data(state=self.data.next_state,
+        self.__data = Data(state=self.elem.next_state,
                     action=action,
                     next_state=next_state,
                     reward=reward,

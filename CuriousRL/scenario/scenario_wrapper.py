@@ -2,7 +2,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from torch import Tensor
 import numpy as np
-from CuriousRL.data import Data, ActionSpace
+from CuriousRL.data import Data, ActionSpace, Batch
 from CuriousRL.utils.Logger import logger
 from .scenario import Scenario
 from typing import TYPE_CHECKING, List, Tuple
@@ -10,8 +10,6 @@ from typing import TYPE_CHECKING, List, Tuple
 class ScenarioWrapper(Scenario):
     def __init__(self, scenario: Scenario):
         self.__scenatio = scenario
-        super().__init__(scenario = scenario)
-        pass 
 
     @property
     def action_space(self) -> ActionSpace:
@@ -31,7 +29,7 @@ class ScenarioWrapper(Scenario):
 
     @property
     @abstractmethod
-    def data(self) -> Data:
+    def elem(self) -> Union[Data, Batch]:
         pass
 
     @abstractmethod
@@ -40,4 +38,9 @@ class ScenarioWrapper(Scenario):
 
     @abstractmethod
     def step(self, action: List) -> Scenario:
+        pass
+
+    @property
+    @abstractmethod
+    def state_shape(self) -> Tuple:
         pass

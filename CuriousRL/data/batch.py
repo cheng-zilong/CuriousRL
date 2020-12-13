@@ -2,11 +2,10 @@ from __future__ import annotations
 import torch
 from torch import Tensor
 from typing import Union, Tuple
-from CuriousRL.utils.config import global_config
-from .data import ACCESSIBLE_KEY
 import copy
 import numpy as np
-
+from CuriousRL.utils.config import global_config
+from .data import ACCESSIBLE_KEY, Data
 
 class Batch(object):
     """This is the class for building a batch of reinforcement learning data inlcuding state, action, next_state, reward, and done_flag.
@@ -88,6 +87,25 @@ class Batch(object):
     def __repr__(self):
         return self.__str__()
 
+    def __setitem__(self, index, data:Data):
+        if not isinstance(index, int):
+            raise Exception("Index must be an integer!")
+        for key in ACCESSIBLE_KEY:
+            if data._data_dict[key] is None:
+                continue
+            self._batch_dict[key][index] = data._data_dict[key]
+
+    def __getitem__(self, index):
+        if not isinstance(index, int):
+            raise Exception("Index must be an integer!")
+        data_dict = {}
+        for key in ACCESSIBLE_KEY:
+            if data._data_dict[key] is None:
+                data_dict[key] = None
+            else:
+                data_dict[key] = self._batch_dict[key][index]
+        return Data(**data_dict)
+
     @property
     def state(self) -> Tensor:
         """Get state
@@ -114,6 +132,7 @@ class Batch(object):
         :rtype: Tensor[data_size, \*state_dim]
         """
         return self._batch_dict['next_state']
+
 
     @property
     def reward(self) -> Tensor:
@@ -158,3 +177,11 @@ class Batch(object):
         :rtype: Batch
         """
         return copy.deepcopy(self)
+
+    def share_memmory_(self) -> Batch:
+        "Moves the underlying storage to shared memory."
+        new_batch = self.clone()
+        for key in ACCESSIBLE_KEY:
+            if new_batch._batch_dict[key] is not None:
+                new_batch._batch_dict[key] = new_batch._batch_dict[key].share_memory_()
+        return new_batch

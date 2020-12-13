@@ -19,7 +19,7 @@ class Dataset(object):
     """
 
     def __init__(self, buffer_size):
-        self._buffer_size = buffer_size
+        self._buffer_size = int(buffer_size)
         self._dataset_dict = {}
         self._update_index = 0
         self._total_update_num = 0  # totally number of obtained data

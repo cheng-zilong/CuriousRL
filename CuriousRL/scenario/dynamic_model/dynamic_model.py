@@ -12,6 +12,7 @@ import torch
 from torch import Tensor, tensor
 import sys
 
+
 class DynamicModel(Scenario):
     """This is a class for creating dynamic models from the state transfer function 
     given in the form :math:`x(k+1)=f\\big (x(k),u(k)\\big)`, where :math:`x` is the state, and :math:`u`
@@ -64,15 +65,16 @@ class DynamicModel(Scenario):
     :param add_param: Additional parameter with the first index as time stamp, defaults to None
     :type add_param: numpy.array, optional
     """
-    def __init__(self, 
-                dynamic_function: sp.ImmutableDenseNDimArray, 
-                xu_var: Tuple[sp.Array, ...], 
-                constr,
-                init_state, 
-                T,
-                obj_fun,
-                add_param_var = None,
-                add_param = None):
+
+    def __init__(self,
+                 dynamic_function: sp.ImmutableDenseNDimArray,
+                 xu_var: Tuple[sp.Array, ...],
+                 constr,
+                 init_state,
+                 T,
+                 obj_fun,
+                 add_param_var=None,
+                 add_param=None):
         self._n = int(init_state.shape[0])
         self._m = int(len(xu_var) - self._n)
         self._T = T
@@ -80,11 +82,13 @@ class DynamicModel(Scenario):
             add_param_var = sp.symbols("no_use")
             add_param = np.zeros((self._T, 1))
         self._dynamic_function = dynamic_function
-        self._dynamic_function_lamdify = njit(sp.lambdify([xu_var], dynamic_function, "math"))
-        self._obj_fun_lamdify = njit(sp.lambdify([xu_var, add_param_var], obj_fun, "math"))
+        self._dynamic_function_lamdify = njit(
+            sp.lambdify([xu_var], dynamic_function, "math"))
+        self._obj_fun_lamdify = njit(sp.lambdify(
+            [xu_var, add_param_var], obj_fun, "math"))
         self._xu_var = xu_var
         self._init_state = init_state
-        self._current_state = init_state[:,0]
+        self._current_state = init_state[:, 0]
         self._constr = constr
         self._obj_fun = obj_fun
         self._add_param_var = add_param_var
@@ -92,18 +96,18 @@ class DynamicModel(Scenario):
         self._tau = 0
         self._fig = None
         self._ax = None
-        super().__init__(n = self._n,
-                        m = self._m,
-                        T = self._T,
-                        dynamic_function = dynamic_function,
-                        xu_var = xu_var,
-                        constr = constr,
-                        init_state = init_state,
-                        obj_fun = obj_fun,
-                        add_param_var = add_param_var,
-                        add_param = add_param)
+        logger.info(n=self._n,
+                    m=self._m,
+                    T=self._T,
+                    dynamic_function=dynamic_function,
+                    xu_var=xu_var,
+                    constr=constr,
+                    init_state=init_state,
+                    obj_fun=obj_fun,
+                    add_param_var=add_param_var,
+                    add_param=add_param)
 
-    def _create_plot(self, figsize =(5, 5), xlim = (-6,6), ylim = (-6,6)):
+    def _create_plot(self, figsize=(5, 5), xlim=(-6, 6), ylim=(-6, 6)):
         """Create a plot for annimation.
 
         :param figsize: Annimation figure size, defaults to (5, 5)
@@ -115,8 +119,8 @@ class DynamicModel(Scenario):
         """
         if self._fig is None:
             logger.info("[+] Annimation figure is created!")
-            self._fig = plt.figure(figsize = figsize)
-            self._ax = self._fig.add_subplot(111) 
+            self._fig = plt.figure(figsize=figsize)
+            self._ax = self._fig.add_subplot(111)
             self._ax.axis('equal')
             self._ax.set_xlim(*xlim)
             self._ax.set_ylim(*ylim)
@@ -143,7 +147,7 @@ class DynamicModel(Scenario):
     def xu_var(self):
         """Stata and action variables in the type of sympy symbols."""
         return self._xu_var
-        
+
     @property
     def init_state(self):
         """Initial state of the dynamic system in the type of numpy array."""
@@ -172,8 +176,8 @@ class DynamicModel(Scenario):
     @property
     def add_param(self):
         """Additional parameters."""
-        return self._add_param 
-    
+        return self._add_param
+
     @property
     def constr(self):
         """Constraints of state and action variables."""
@@ -182,25 +186,28 @@ class DynamicModel(Scenario):
     def reset(self) -> Scenario:
         """Reset the current state to the initial state."""
         self._tau = 0
-        next_state = tensor(self._init_state[:,0], dtype=torch.float).view(-1)
+        next_state = tensor(self._init_state[:, 0], dtype=torch.float).view(-1)
         self.__data = Data(next_state=next_state)
         return self
 
     def step(self, action: List) -> Scenario:
         """Evaulate the next state given an action. Return state, action, next_state, reward, done_flag in a ``Data`` instance."""
         self._tau += 1
-        next_state = self._dynamic_function_lamdify(np.concatenate([self._current_state, action]))
+        next_state = self._dynamic_function_lamdify(
+            np.concatenate([self._current_state, action]))
         for i, c in enumerate(self._constr[:self._n]):
-            next_state[i] = min(max(c[0], next_state), c[1]) 
-        reward = -self._obj_fun_lamdify(np.concatenate([next_state, action]), self._add_param[self._tau-1])
+            next_state[i] = min(max(c[0], next_state), c[1])
+        reward = - \
+            self._obj_fun_lamdify(np.concatenate(
+                [next_state, action]), self._add_param[self._tau-1])
         next_state = tensor(next_state, dtype=torch.float).view(-1)
         done_flag = True if self._tau == self._T else False
         action = tensor(action, dtype=torch.float).view(-1)
         self.__data = Data(state=self.__data.next_state,
-            action=action,
-            next_state=next_state,
-            reward=reward,
-            done_flag=done_flag)
+                           action=action,
+                           next_state=next_state,
+                           reward=reward,
+                           done_flag=done_flag)
         return self
 
     def data(self) -> Data:
@@ -223,7 +230,7 @@ class DynamicModel(Scenario):
             logger_folder, no_iter)["trajectory"])
         self._is_interrupted = False
         for i in range(self.T):
-            self._current_state = trajectory[i,:,0]
+            self._current_state = trajectory[i, :, 0]
             if self._fig is not None:
                 self._fig.canvas.set_window_title("Time:" + str(i))
             self.render()

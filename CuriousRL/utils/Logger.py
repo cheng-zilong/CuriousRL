@@ -104,21 +104,49 @@ class Logger(object):
         """
         self.__min_level = level
 
-    def debug(self, *args):
+    def debug(self, *args, **kwargs):
         if self.__min_level <= self.DEBUG:
-            _logger.debug(*args)
+            if len(args) !=0:
+                _logger.debug(*args)
+            if len(kwargs) != 0:
+                for key in kwargs:
+                    try:
+                        logger.debug("[+] " + key + " = " + str(kwargs[key].tolist()))
+                    except:
+                        logger.debug("[+] " + key + " = " + str(kwargs[key]))
 
-    def info(self, *args):
+    def info(self, *args, **kwargs):
         if self.__min_level <= self.INFO:
-            _logger.info(*args)
+            if len(args) !=0:
+                _logger.info(*args)
+            if len(kwargs) != 0:
+                for key in kwargs:
+                    try:
+                        logger.info("[+] " + key + " = " + str(kwargs[key].tolist()))
+                    except:
+                        logger.info("[+] " + key + " = " + str(kwargs[key]))
 
-    def warn(self, *args):
+    def warn(self, *args, **kwargs):
         if self.__min_level <= self.WARN:
-            _logger.warning(*args)
+            if len(args) !=0:
+                _logger.warning(*args)
+            if len(kwargs) != 0:
+                for key in kwargs:
+                    try:
+                        logger.warning("[+] " + key + " = " + str(kwargs[key].tolist()))
+                    except:
+                        logger.warning("[+] " + key + " = " + str(kwargs[key]))
 
-    def error(self, *args):
+    def error(self, *args, **kwargs):
         if self.__min_level <= self.ERROR:
-            _logger.error(*args)
+            if len(args) !=0:
+                _logger.error(*args)
+            if len(kwargs) != 0:
+                for key in kwargs:
+                    try:
+                        logger.error("[+] " + key + " = " + str(kwargs[key].tolist()))
+                    except:
+                        logger.error("[+] " + key + " = " + str(kwargs[key]))
 
 # Global logger
 logger = Logger() 

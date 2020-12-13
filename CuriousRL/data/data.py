@@ -89,6 +89,7 @@ class Data(object):
         """
         return self._data_dict['next_state']
         
+
     @property
     def reward(self) -> Tensor:
         """Get reward

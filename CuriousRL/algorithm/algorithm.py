@@ -11,10 +11,6 @@ class Algorithm(ABC):
             >>> scen1 = scenario("name", algo = algo1) # Ready for running. Call init(self, scenario)
             >>> scen1.learn() # Start learning. Call solve(self)
     """
-    def __init__(self, **kwargs):
-        self.kwargs = kwargs
-        self.print_params()
-
     @abstractmethod
     def init(self, scenario:Scenario):
         pass
@@ -26,14 +22,4 @@ class Algorithm(ABC):
     @property
     def name(self):
         return self.__class__.__name__
-    
-    def print_params(self):
-        """Save the parameters of the current scenario in logger.
-        """
-        logger.info("[+] Algorithm Name:" + str(self.name))
-        for key in self.kwargs:
-            try:
-                logger.info("[+] " + key + " = " + str(self.kwargs[key].tolist()))
-            except:
-                logger.info("[+] " + key + " = " + str(self.kwargs[key]))
 

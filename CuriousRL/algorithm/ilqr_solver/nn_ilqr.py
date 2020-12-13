@@ -297,6 +297,11 @@ class NNiLQR(iLQRWrapper):
                          max_line_search=max_line_search,
                          gamma=gamma,
                          line_search_method=line_search_method,
+                         stopping_method=stopping_method)
+        logger.info(stopping_criterion=iLQR_stopping_criterion,
+                         max_line_search=max_line_search,
+                         gamma=gamma,
+                         line_search_method=line_search_method,
                          stopping_method=stopping_method,
                          network_class=network_class,
                          trial_no=trial_no,

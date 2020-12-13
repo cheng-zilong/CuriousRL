@@ -82,5 +82,8 @@ class VehicleTracking(DynamicModel):
 
     @property
     def action_space(self):
-        """ The ``ActionSpace`` of the scenario."""
         return self._action_space
+
+    @property
+    def state_shape(self):
+        return (4,)

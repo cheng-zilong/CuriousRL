@@ -1,47 +1,63 @@
+from __future__ import annotations
+from torch import Tensor
+import torch
+from collections import deque
+from gym import spaces
+import numpy as np
+import gym
 import cv2
 cv2.ocl.setUseOpenCL(False)
-import gym
-import numpy as np
-from gym import spaces
-from collections import deque
-from CuriousRL.scenario import ScenarioWrapper, Scenario
-import torch
-from torch import Tensor
-from CuriousRL.utils.config import global_config
+from typing import TYPE_CHECKING, List, Tuple
+
 from CuriousRL.data import Data, ActionSpace
-        
+from CuriousRL.utils.config import global_config
+from CuriousRL.utils.Logger import logger
+from CuriousRL.scenario import ScenarioWrapper, Scenario
+
 class AtariScenarioWrapper(ScenarioWrapper):
-    def __init__(self, scenario:Scenario, stack_num = 4, is_clip_reward = True):
-        super().__init__(scenario = scenario)
+    def __init__(self, scenario: Scenario, stack_num=4, is_clip_reward=True):
+        super().__init__(scenario=scenario)
         self._scenario = scenario
         self._stack_num = stack_num
         self._is_clip_reward = is_clip_reward
         self._frames = deque([], maxlen=stack_num)
+        logger.info(name = self.name,
+                    stack_num=stack_num,
+                    is_clip_reward=is_clip_reward)
+        
 
     def reset(self) -> Scenario:
         self._scenario.reset()
-        state = torch.transpose(self._scenario.data.next_state, 0, 2)
+        state = torch.transpose(self._scenario.elem.next_state, 0, 2)
         for _ in range(self._stack_num):
             self._frames.append(state)
-        new_state = torch.cat(tuple(self._frames),dim=0)
-        self.__data = Data(next_state = new_state)
+        new_state = torch.cat(tuple(self._frames), dim=0)
+        self.__data = Data(next_state=new_state)
         return self
 
     def step(self, action) -> Scenario:
         self._scenario.step(action)
-        new_reward = torch.sign(self._scenario.data.reward) if self._is_clip_reward else data.reward # clip reward
-        self._frames.append(torch.transpose(self._scenario.data.next_state, 0, 2))
-        new_state = torch.cat(tuple(self._frames),dim=0)
+        new_reward = torch.sign(
+            self._scenario.elem.reward) if self._is_clip_reward else data.reward  # clip reward
+        self._frames.append(torch.transpose(
+            self._scenario.elem.next_state, 0, 2))
+        new_state = torch.cat(tuple(self._frames), dim=0)
         self.__data = Data(state=self.__data.next_state,
-                            action=self._scenario.data.action,
-                            next_state=new_state,
-                            reward=new_reward,
-                            done_flag=self._scenario.data.done_flag)
+                           action=self._scenario.elem.action,
+                           next_state=new_state,
+                           reward=new_reward,
+                           done_flag=self._scenario.elem.done_flag)
         return self
 
     @property
-    def data(self) -> Data:
+    def elem(self) -> Data:
         return self.__data
+
+    @property
+    def state_shape(self) -> Tuple:
+        old_shape = self._scenario.state_shape
+        new_shape = (self._stack_num, old_shape[1], old_shape[0])
+        return new_shape
 
 class NoopResetEnv(gym.Wrapper):
     def __init__(self, env, noop_max=30):
@@ -60,7 +76,8 @@ class NoopResetEnv(gym.Wrapper):
         if self.override_num_noops is not None:
             noops = self.override_num_noops
         else:
-            noops = self.unwrapped.np_random.randint(1, self.noop_max + 1) #pylint: disable=E1101
+            noops = self.unwrapped.np_random.randint(
+                1, self.noop_max + 1)  # pylint: disable=E1101
         assert noops > 0
         obs = None
         for _ in range(noops):
@@ -71,6 +88,7 @@ class NoopResetEnv(gym.Wrapper):
 
     def step(self, ac):
         return self.env.step(ac)
+
 
 class FireResetEnv(gym.Wrapper):
     def __init__(self, env):
@@ -92,6 +110,7 @@ class FireResetEnv(gym.Wrapper):
     def step(self, ac):
         return self.env.step(ac)
 
+
 class EpisodicLifeEnv(gym.Wrapper):
     def __init__(self, env):
         """Make end-of-life == end-of-episode, but only reset on true game over.
@@ -99,7 +118,7 @@ class EpisodicLifeEnv(gym.Wrapper):
         """
         gym.Wrapper.__init__(self, env)
         self.lives = 0
-        self.was_real_done  = True
+        self.was_real_done = True
 
     def step(self, action):
         obs, reward, done, info = self.env.step(action)
@@ -128,13 +147,15 @@ class EpisodicLifeEnv(gym.Wrapper):
         self.lives = self.env.unwrapped.ale.lives()
         return obs
 
+
 class MaxAndSkipEnv(gym.Wrapper):
     def __init__(self, env, skip=4):
         """Return only every `skip`-th frame"""
         gym.Wrapper.__init__(self, env)
         # most recent raw observations (for max pooling across time steps)
-        self._obs_buffer = np.zeros((2,)+env.observation_space.shape, dtype=np.uint8)
-        self._skip       = skip
+        self._obs_buffer = np.zeros(
+            (2,)+env.observation_space.shape, dtype=np.uint8)
+        self._skip = skip
 
     def step(self, action):
         """Repeat action, sum reward, and max over last observations."""
@@ -142,8 +163,10 @@ class MaxAndSkipEnv(gym.Wrapper):
         done = None
         for i in range(self._skip):
             obs, reward, done, info = self.env.step(action)
-            if i == self._skip - 2: self._obs_buffer[0] = obs
-            if i == self._skip - 1: self._obs_buffer[1] = obs
+            if i == self._skip - 2:
+                self._obs_buffer[0] = obs
+            if i == self._skip - 1:
+                self._obs_buffer[1] = obs
             total_reward += reward
             if done:
                 break
@@ -162,6 +185,7 @@ class MaxAndSkipEnv(gym.Wrapper):
         else:
             return self.env.render(mode)
 
+
 class WarpFrame(gym.ObservationWrapper):
     def __init__(self, env):
         """Warp frames to 84x84 as done in the Nature paper and later work."""
@@ -173,8 +197,10 @@ class WarpFrame(gym.ObservationWrapper):
 
     def observation(self, frame):
         frame = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
-        frame = cv2.resize(frame, (self.width, self.height), interpolation=cv2.INTER_AREA)
+        frame = cv2.resize(frame, (self.width, self.height),
+                           interpolation=cv2.INTER_AREA)
         return frame[:, :, None]
+
 
 def wrap_deepmind(env, episode_life=True):
     """Configure environment for DeepMind-style Atari."""

@@ -21,7 +21,7 @@ def main():
     # algo = DiscreteDQN()
     # algo.init(scenario)
     # algo.solve()
-    scenario = AtariScenarioWrapper(OpenAIGym(wrap_deepmind(gym.make("BreakoutNoFrameskip-v4"))))
+    scenario = AtariScenarioWrapper(OpenAIGym(wrap_deepmind(gym.make("PongNoFrameskip-v4"))))
     algo = DiscreteDQN(eps_linear_decay_len = 100000, eps_start=1, eps_end=0.02, gamma=0.99, eps_exp_decay_rate = 1, max_episode=2000)
     algo.init(scenario)
     algo.solve()
