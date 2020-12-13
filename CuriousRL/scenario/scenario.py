@@ -1,33 +1,25 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
+from torch import Tensor
 import numpy as np
 from CuriousRL.data import Data, ActionSpace
 from CuriousRL.utils.Logger import logger
 from typing import TYPE_CHECKING, List, Tuple
-if TYPE_CHECKING:
-    from CuriousRL.scenario.dynamic_model.dynamic_model import DynamicModelWrapper
 
-class ScenarioWrapper(ABC):
+class Scenario(ABC):
     def __init__(self, **kwargs):
         self.kwargs = kwargs
         self.print_params()
 
-    @abstractmethod
-    def reset(self)  -> np.array:
-        pass
+    def __str__(self):
+        return self.name
 
-    @abstractmethod
-    def step(self, action: List) -> Data:
-        pass
+    def __repr__(self):
+        return self.name
 
     @property
     @abstractmethod
     def action_space(self) -> ActionSpace:
-        pass
-
-    @property
-    @abstractmethod
-    def current_state(self) -> np.ndarray:
         pass
 
     @abstractmethod
@@ -52,3 +44,16 @@ class ScenarioWrapper(ABC):
                 logger.info("[+] " + key + " = " + str(self.kwargs[key].tolist()))
             except:
                 logger.info("[+] " + key + " = " + str(self.kwargs[key]))
+
+    @property
+    @abstractmethod
+    def data(self) -> Data:
+        pass
+
+    @abstractmethod
+    def reset(self)  -> Scenario:
+        pass
+
+    @abstractmethod
+    def step(self, action: List) -> Scenario:
+        pass

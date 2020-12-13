@@ -1,16 +1,16 @@
 from __future__ import annotations
-from CuriousRL.scenario.scen_wrapper import ScenarioWrapper
+from CuriousRL.scenario import Scenario
 
 class BasicDQN():
     def __init__(self):
         pass
 
-    def init(self, scenario:ScenarioWrapper):
+    def init(self, scenario:Scenario):
         # initialize OpenAI Gym env and dqn agent
         env = gym.make(ENV_NAME)
 
     def solve(self):
-        agent = DQNWrapper(env)
+        agent = DiscreteDQN(env)
         for episode in xrange(EPISODE):
             # initialize task
             state = env.reset()

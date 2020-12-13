@@ -1,1 +1,1 @@
-from . algo_wrapper import AlgoWrapper
+from . algorithm import Algorithm

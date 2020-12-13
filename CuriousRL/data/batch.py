@@ -7,6 +7,7 @@ from .data import ACCESSIBLE_KEY
 import copy
 import numpy as np
 
+
 class Batch(object):
     """This is the class for building a batch of reinforcement learning data inlcuding state, action, next_state, reward, and done_flag.
     This is the basic data class for all the algorithms in the ``CuriousRL`` package.
@@ -42,39 +43,39 @@ class Batch(object):
     :param done_flag: The flag deciding whether one episode is done
     :type done_flag: Union[Tensor, numpy.array, ...]
     """
+
     def __init__(self, *args, **kwargs):
         self._batch_dict = {}
         if len(args) != 0:
             for key in ACCESSIBLE_KEY:
-                if args[0]._data_dict[key] == None:
+                if args[0]._data_dict[key] is None:
                     self._batch_dict[key] = None
                 else:
-                    self._batch_dict[key] = torch.stack([data._data_dict[key] for data in args])
+                    self._batch_dict[key] = torch.stack(
+                        [data._data_dict[key] for data in args])
         else:
             for key in ACCESSIBLE_KEY:
                 if key not in kwargs:
-                   self._batch_dict[key] = None
-                   continue
-                if not isinstance(kwargs[key], Tensor): # if not Tensor, change it to Tensor first
+                    self._batch_dict[key] = None
+                    continue
+                if not isinstance(kwargs[key], Tensor):
+                    # if not Tensor, change it to Tensor first
                     kwargs[key] = torch.from_numpy(np.asarray(kwargs[key]))
-                if kwargs[key].dtype != torch.bool and kwargs[key].dtype != torch.int: # if not bool and bot int, transfer it to float
-                    kwargs[key] = kwargs[key].float() 
-                if key == 'reward' or key == 'done_flag':# if the key is reward or done_flag, ensure that it is with one dimension
-                    kwargs[key] = kwargs[key].reshape(-1)
-                if global_config.is_cuda: # if GPU is used, transfer it to cuda, otherwise to gpu
+                if (kwargs[key].dtype != torch.float) and (kwargs[key].dtype not in {torch.bool,torch.int}):
+                    # if not bool and bot int, transfer it to float
+                    kwargs[key] = kwargs[key].float()
+                if (global_config.is_cuda) and (kwargs[key].get_device() == -1):  
+                    # if GPU is used, and kwargs is not on GPU, transfer it to GPU
                     self._batch_dict[key] = kwargs[key].cuda()
-                else:
-                    self._batch_dict[key] = kwargs[key].cpu()
-        size_list = []
-        for key in ACCESSIBLE_KEY:
-            if self._batch_dict[key] != None:
-                size_list.append(self._batch_dict[key].shape[0])
-        if len(set(size_list)) > 1:
-            raise Exception('The first dimensions of state, action, next_state, reward, done_flag are not identical.')
+                if key in {'reward','done_flag'}:
+                    # if the key is reward or done_flag, ensure that it is with one dimension
+                    if kwargs[key].dim() != 1:
+                        raise Exception('\"' + key + '\" must be one dimension array of scalars!')
+                self._batch_dict[key] = kwargs[key]
 
     def __len__(self):
         for key in ACCESSIBLE_KEY:
-            if self._batch_dict[key] != None:
+            if self._batch_dict[key] is not None:
                 return self._batch_dict[key].shape[0]
 
     def __str__(self):
@@ -136,7 +137,7 @@ class Batch(object):
         """Cat the current Batch instance with the other Batch instances. 
         The current batch will be updated. If you dont want to change the current one,
         the following method can be used. batch4 = batch1.clone().cat((batch2, batch3))
-        
+
         :param batches: A tuple of batch with the same structure as the current one.
         :type batches: Tuple[Batch, ...]
         """
@@ -145,8 +146,9 @@ class Batch(object):
         else:
             batches = (self, *batches)
         for key in ACCESSIBLE_KEY:
-            if self._batch_dict[key] != None:
-                self._batch_dict[key] = torch.cat([batch._batch_dict[key] for batch in batches])
+            if self._batch_dict[key] is not None:
+                self._batch_dict[key] = torch.cat(
+                    [batch._batch_dict[key] for batch in batches])
         return self
 
     def clone(self) -> Batch:

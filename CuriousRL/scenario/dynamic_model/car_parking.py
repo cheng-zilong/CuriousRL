@@ -1,13 +1,13 @@
 import numpy as np
 import sympy as sp
-from .dynamic_model import DynamicModelWrapper
+from .dynamic_model import DynamicModel
 from CuriousRL.utils.Logger import logger
 from CuriousRL.data import ActionSpace
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import matplotlib as mpl
 
-class CarParking(DynamicModelWrapper):
+class CarParking(DynamicModel):
     """In this example, a vehicle with 4 states and 2 actions, parks at (1, -1) heading to the top.
     We hope that the vechile finally parks at (0, 0) and heads to the right.
     The states and actions are listed as follows:
@@ -122,7 +122,7 @@ class CarParking(DynamicModelWrapper):
     def render(self):
         """ This method will render an image for the current state."""
         if self._fig is None:
-            super().create_plot(figsize=(5, 5), xlim=(-5, 10), ylim=(-7.5, 7.5))
+            super()._create_plot(figsize=(5, 5), xlim=(-5, 10), ylim=(-7.5, 7.5))
             self._render_car = patches.FancyBboxPatch((0, 0), 3, 2, "round,pad=0.2")
             self._render_car.set_color('C0')
             self._ax.add_patch(self._render_car)
@@ -142,7 +142,7 @@ class CarParking(DynamicModelWrapper):
         self._render_car.set_transform(t_end)
         self._fig.canvas.draw()
         plt.pause(0.001)
-
+        
     @property
     def action_space(self):
         """ The ``ActionSpace`` of the scenario."""

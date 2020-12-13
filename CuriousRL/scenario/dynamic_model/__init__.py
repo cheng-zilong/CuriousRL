@@ -5,5 +5,5 @@ from .cart_pole_swingup2 import CartPoleSwingUp2
 from .robotic_arm_tracking import RoboticArmTracking 
 from .two_link_planar_manipulator import TwoLinkPlanarManipulator
 from .three_link_planar_manipulator import ThreeLinkPlanarManipulator
-from .dynamic_model import DynamicModelWrapper
+from .dynamic_model import DynamicModel
 # from .sneak_robot_tracking import SneakRobotTracking

@@ -1,12 +1,12 @@
 import numpy as np
 import sympy as sp
-from .dynamic_model import DynamicModelWrapper
+from .dynamic_model import DynamicModel
 from CuriousRL.utils.Logger import logger
 from CuriousRL.data import ActionSpace
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import matplotlib as mpl
-class TwoLinkPlanarManipulator(DynamicModelWrapper):
+class TwoLinkPlanarManipulator(DynamicModel):
     """In this example, a simple two link planar manipulator with simple dynamics 
     is utilized to realize the tracking objective.
     The states and actions are listed as follows:
@@ -82,7 +82,7 @@ class TwoLinkPlanarManipulator(DynamicModelWrapper):
     def render(self):
         """ This method will render an image for the current state."""
         if self._fig is None:
-            super().create_plot(xlim=(-4,4), ylim=(-4,4))
+            super()._create_plot(xlim=(-4,4), ylim=(-4,4))
             self._render_pole1 = patches.FancyBboxPatch((0, 0), 0.04, self.l1, "round,pad=0.02")
             self._render_pole1.set_color('C0')
             self._render_pole2 = patches.FancyBboxPatch((0, 0), 0.04, self.l2, "round,pad=0.02")

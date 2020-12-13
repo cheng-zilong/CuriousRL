@@ -1,14 +1,14 @@
 #%%
 import numpy as np
 import sympy as sp
-from .dynamic_model import DynamicModelWrapper
+from .dynamic_model import DynamicModel
 from CuriousRL.utils.Logger import logger
 from CuriousRL.data import ActionSpace
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import matplotlib as mpl
 
-class CartPoleSwingUp2(DynamicModelWrapper):
+class CartPoleSwingUp2(DynamicModel):
     """In this example, a cartpole system is stable with the pole lying downsode. The cart is static at 
     the original point. The states and actions are listed as follows:
 
@@ -75,7 +75,7 @@ class CartPoleSwingUp2(DynamicModelWrapper):
     def render(self):
         """ This method will render an image for the current state."""
         if self._fig is None:
-            super().create_plot(figsize=(5, 2), xlim=(-5, 5), ylim=(-1,1))
+            super()._create_plot(figsize=(5, 2), xlim=(-5, 5), ylim=(-1,1))
             self._render_cart = patches.FancyBboxPatch((0, -0.1), 0.4, 0.2, "round,pad=0.02")
             self._render_cart.set_color('C0')
             self._render_pole = patches.FancyBboxPatch((0, 0), 0.04, 0.5, "round,pad=0.02")

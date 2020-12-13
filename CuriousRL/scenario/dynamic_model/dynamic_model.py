@@ -2,14 +2,17 @@ from __future__ import annotations
 import numpy as np
 import sympy as sp
 from numba import njit
-from CuriousRL.scenario.scen_wrapper import ScenarioWrapper
+from CuriousRL.scenario.scenario import Scenario
 from CuriousRL.utils.Logger import logger
+from CuriousRL.utils.config import global_config
 import matplotlib.pyplot as plt
 from CuriousRL.data import Data
 from typing import TYPE_CHECKING, List
+import torch
+from torch import Tensor, tensor
 import sys
 
-class DynamicModelWrapper(ScenarioWrapper):
+class DynamicModel(Scenario):
     """This is a class for creating dynamic models from the state transfer function 
     given in the form :math:`x(k+1)=f\\big (x(k),u(k)\\big)`, where :math:`x` is the state, and :math:`u`
     is the action. In each dynamic model scenario, an objective function is required to be given in the form
@@ -81,11 +84,11 @@ class DynamicModelWrapper(ScenarioWrapper):
         self._obj_fun_lamdify = njit(sp.lambdify([xu_var, add_param_var], obj_fun, "math"))
         self._xu_var = xu_var
         self._init_state = init_state
+        self._current_state = init_state[:,0]
         self._constr = constr
         self._obj_fun = obj_fun
         self._add_param_var = add_param_var
         self._add_param = add_param
-        self._current_state = init_state[:,0]
         self._tau = 0
         self._fig = None
         self._ax = None
@@ -100,7 +103,7 @@ class DynamicModelWrapper(ScenarioWrapper):
                         add_param_var = add_param_var,
                         add_param = add_param)
 
-    def create_plot(self, figsize =(5, 5), xlim = (-6,6), ylim = (-6,6)):
+    def _create_plot(self, figsize =(5, 5), xlim = (-6,6), ylim = (-6,6)):
         """Create a plot for annimation.
 
         :param figsize: Annimation figure size, defaults to (5, 5)
@@ -110,7 +113,7 @@ class DynamicModelWrapper(ScenarioWrapper):
         :param ylim: Limits to y-axis, defaults to (-6,6)
         :type ylim: Tuple[float, float], optional
         """
-        if self._fig == None:
+        if self._fig is None:
             logger.info("[+] Annimation figure is created!")
             self._fig = plt.figure(figsize = figsize)
             self._ax = self._fig.add_subplot(111) 
@@ -125,10 +128,6 @@ class DynamicModelWrapper(ScenarioWrapper):
         self._ax = None
         logger.info("[+] Annimation figure is closed!")
         sys.exit()
-
-    @property
-    def current_state(self) -> np.array:
-        return self._current_state
 
     @property
     def dynamic_function(self):
@@ -180,28 +179,32 @@ class DynamicModelWrapper(ScenarioWrapper):
         """Constraints of state and action variables."""
         return self._constr
 
-    def reset(self) -> np.array:
+    def reset(self) -> Scenario:
         """Reset the current state to the initial state."""
         self._tau = 0
-        self._current_state = self._init_state[:,0]
-        return self._init_state
+        next_state = tensor(self._init_state[:,0], dtype=torch.float).view(-1)
+        self.__data = Data(next_state=next_state)
+        return self
 
-    def step(self, action: List) -> Data:
+    def step(self, action: List) -> Scenario:
         """Evaulate the next state given an action. Return state, action, next_state, reward, done_flag in a ``Data`` instance."""
         self._tau += 1
-        last_state = self._current_state 
-        self._current_state = self._dynamic_function_lamdify(np.concatenate([self._current_state, action]))
+        next_state = self._dynamic_function_lamdify(np.concatenate([self._current_state, action]))
         for i, c in enumerate(self._constr[:self._n]):
-            self._current_state[i] = min(max(c[0], self._current_state[i]), c[1]) 
-        reward = -self._obj_fun_lamdify(np.concatenate([self._current_state, action]), self._add_param[self._tau-1])
-        if self._tau == self._T:
-            done_flag = True
-            data = Data(state = np.asarray(last_state), action = np.asarray(action), next_state = np.asarray(self._current_state), reward = reward, done_flag = done_flag)
-            self.reset()
-        else:
-            done_flag = False
-            data = Data(state = np.asarray(last_state), action = np.asarray(action), next_state = np.asarray(self._current_state), reward = reward, done_flag = done_flag)
-        return data
+            next_state[i] = min(max(c[0], next_state), c[1]) 
+        reward = -self._obj_fun_lamdify(np.concatenate([next_state, action]), self._add_param[self._tau-1])
+        next_state = tensor(next_state, dtype=torch.float).view(-1)
+        done_flag = True if self._tau == self._T else False
+        action = tensor(action, dtype=torch.float).view(-1)
+        self.__data = Data(state=self.__data.next_state,
+            action=action,
+            next_state=next_state,
+            reward=reward,
+            done_flag=done_flag)
+        return self
+
+    def data(self) -> Data:
+        return self.__data
 
     def play(self, logger_folder=None, no_iter=-1):
         """ This method will play an animation for a whole episode.
@@ -227,5 +230,3 @@ class DynamicModelWrapper(ScenarioWrapper):
             if self._is_interrupted:
                 return
         self._is_interrupted = True
-
-# %%

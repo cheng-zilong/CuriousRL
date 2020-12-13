@@ -82,10 +82,10 @@ class Logger(object):
     def read_from_json(self, folder_name = None, no_iter = -1):
         """ if IS_SAVE_JSON = False and folder_name = None, then read it from memmory
         """
-        if self.__is_save_json == False and folder_name == None:
+        if self.__is_save_json == False and folder_name is None:
             return self.memory_json
 
-        if folder_name == None:
+        if folder_name is None:
             folder_name = self.__folder_name
         try:
             file_object = open(os.path.join("logs", folder_name, "main.json"))
