@@ -40,7 +40,7 @@ class Data(object):
             if not isinstance(kwargs[key], Tensor): 
                 # if not Tensor, change it to Tensor first
                 kwargs[key] = torch.from_numpy(np.asarray(kwargs[key]))
-            if (kwargs[key].dtype != torch.float) and (kwargs[key].dtype not in {torch.bool,torch.int}): 
+            if (kwargs[key].dtype != torch.float) and (kwargs[key].dtype != torch.bool): 
                 # if not bool and bot int, transfer it to float
                 kwargs[key] = kwargs[key].float() 
             if (global_config.is_cuda) and (kwargs[key].get_device() == -1):   

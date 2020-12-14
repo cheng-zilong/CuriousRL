@@ -5,14 +5,14 @@ import numpy as np
 from CuriousRL.data import Data, ActionSpace, Batch
 from CuriousRL.utils.Logger import logger
 from .scenario import Scenario
-from typing import TYPE_CHECKING, List, Tuple
+from typing import TYPE_CHECKING, List, Tuple, Union
 
 class ScenarioWrapper(Scenario):
     def __init__(self, scenario: Scenario):
         self.__scenatio = scenario
 
     @property
-    def action_space(self) -> ActionSpace:
+    def action_space(self)  -> Union[ActionSpace, List[ActionSpace]]:
         return self.__scenatio.action_space
 
     def render(self) -> None:

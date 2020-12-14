@@ -60,12 +60,12 @@ class Batch(object):
                 if not isinstance(kwargs[key], Tensor):
                     # if not Tensor, change it to Tensor first
                     kwargs[key] = torch.from_numpy(np.asarray(kwargs[key]))
-                if (kwargs[key].dtype != torch.float) and (kwargs[key].dtype not in {torch.bool,torch.int}):
+                if (kwargs[key].dtype != torch.float) and (kwargs[key].dtype != torch.bool):
                     # if not bool and bot int, transfer it to float
                     kwargs[key] = kwargs[key].float()
                 if (global_config.is_cuda) and (kwargs[key].get_device() == -1):  
                     # if GPU is used, and kwargs is not on GPU, transfer it to GPU
-                    self._batch_dict[key] = kwargs[key].cuda()
+                    kwargs[key] = kwargs[key].cuda()
                 if key in {'reward','done_flag'}:
                     # if the key is reward or done_flag, ensure that it is with one dimension
                     if kwargs[key].dim() != 1:
@@ -178,10 +178,35 @@ class Batch(object):
         """
         return copy.deepcopy(self)
 
-    def share_memmory_(self) -> Batch:
-        "Moves the underlying storage to shared memory."
+    def share_memmory_(self, is_cpu = False) -> Batch:
+        """Moves the underlying storage to shared memory. Since cuda tensor sharing is not supported
+        in windows, is_cpu must be set true when running on the windows OS.
+        """
+        new_batch = self.clone()
+        self.is_share_memmory_cpu = is_cpu
+        if is_cpu:
+            for key in ACCESSIBLE_KEY:
+                if new_batch._batch_dict[key] is not None:
+                    new_batch._batch_dict[key] = new_batch._batch_dict[key].cpu().share_memory_()
+            return new_batch
+        else:
+            for key in ACCESSIBLE_KEY:
+                if new_batch._batch_dict[key] is not None:
+                    new_batch._batch_dict[key] = new_batch._batch_dict[key].share_memory_()
+            return new_batch
+
+    def to_gpu(self) -> Batch:
+        """Moves the underlying storage to GPU"""
         new_batch = self.clone()
         for key in ACCESSIBLE_KEY:
             if new_batch._batch_dict[key] is not None:
-                new_batch._batch_dict[key] = new_batch._batch_dict[key].share_memory_()
+                new_batch._batch_dict[key] = new_batch._batch_dict[key].cuda()
+        return new_batch
+
+    def to_cpu(self) -> Batch:
+        """Moves the underlying storage to CPU"""
+        new_batch = self.clone()
+        for key in ACCESSIBLE_KEY:
+            if new_batch._batch_dict[key] is not None:
+                new_batch._batch_dict[key] = new_batch._batch_dict[key].cpu()
         return new_batch

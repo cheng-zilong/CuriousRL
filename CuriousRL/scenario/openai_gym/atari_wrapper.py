@@ -202,8 +202,9 @@ class WarpFrame(gym.ObservationWrapper):
         return frame[:, :, None]
 
 
-def wrap_deepmind(env, episode_life=True):
+def wrap_deepmind(env_name, episode_life=True):
     """Configure environment for DeepMind-style Atari."""
+    env = gym.make(env_name)
     assert 'NoFrameskip' in env.spec.id
     env = NoopResetEnv(env, noop_max=30)
     env = MaxAndSkipEnv(env, skip=4)

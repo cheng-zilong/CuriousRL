@@ -13,7 +13,7 @@ class OpenAIGym(Scenario):
     def __init__(self, env: gym.Env):
         self._env = env
         obs = env.reset()
-        self._state_shape = obs.shape
+        self._state_shape = obs.shape 
         if isinstance(self._env.action_space, gym.spaces.Discrete):
             self._action_type = 'Discrete'
             try:

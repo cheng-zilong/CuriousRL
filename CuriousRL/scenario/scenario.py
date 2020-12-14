@@ -16,7 +16,7 @@ class Scenario(ABC):
 
     @property
     @abstractmethod
-    def action_space(self) -> ActionSpace:
+    def action_space(self) -> Union[ActionSpace, List[ActionSpace, ...]]:
         pass
 
     @property
