@@ -3,7 +3,7 @@ import torch
 
 class GlobalConfiguration(object):
     """This is a class for the global configeration. 
-    This is a singleton mode class.
+    This is a single mode class.
     ``is_cuda`` is the property for deciding whether the gpu is utilized.
     ``set_random_see(seed)`` provides global seed for numpy, PyTorch, and etc.
     """
@@ -14,7 +14,7 @@ class GlobalConfiguration(object):
         self.set_random_seed(self._random_seed)
 
     def __new__(cls):  
-        """This class uses singleton mode
+        """This class uses single mode
         """
         if not hasattr(cls, '_instance'):
             orig = super(GlobalConfiguration, cls)

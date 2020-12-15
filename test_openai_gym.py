@@ -21,8 +21,8 @@ def main():
     # algo = DiscreteDQN()
     # algo.init(scenario)
     # algo.solve()
-    scenario = AtariScenarioWrapper(OpenAIGym(wrap_deepmind("PongNoFrameskip-v4")))
-    algo = DiscreteDQN(eps_linear_decay_len = 100000, eps_start=1, eps_end=0.02, gamma=0.99, eps_exp_decay_rate = 1, one_iter_max_frame=10000)
+    scenario = AtariScenarioWrapper(OpenAIGym(wrap_deepmind("PongNoFrameskip-v4"), on_gpu=True))
+    algo = DiscreteDQN(on_gpu=True, eps_linear_decay_len = 100000, eps_start=1, eps_end=0.02, gamma=0.99, eps_exp_decay_rate = 1, train_frame_num=1000000)
     algo.init(scenario)
     algo.solve()
 

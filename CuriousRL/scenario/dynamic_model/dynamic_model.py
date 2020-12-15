@@ -179,6 +179,10 @@ class DynamicModel(Scenario):
         return self._add_param
 
     @property
+    def mode(self) -> str: 
+        return "single"
+
+    @property
     def constr(self):
         """Constraints of state and action variables."""
         return self._constr

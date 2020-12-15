@@ -1,4 +1,6 @@
 from __future__ import annotations
+
+from torch._C import dtype
 from CuriousRL.scenario import Scenario
 from torch import Tensor, tensor
 import torch
@@ -10,10 +12,9 @@ import numpy as np
 from typing import TYPE_CHECKING, List, Tuple
 
 class OpenAIGym(Scenario):
-    def __init__(self, env: gym.Env):
+    def __init__(self, env: gym.Env, on_gpu):
         self._env = env
-        obs = env.reset()
-        self._state_shape = obs.shape 
+        self._on_gpu = on_gpu
         if isinstance(self._env.action_space, gym.spaces.Discrete):
             self._action_type = 'Discrete'
             try:
@@ -41,9 +42,15 @@ class OpenAIGym(Scenario):
                 'Continuous']*n, action_info=action_info)
         else:
             raise Exception('Not support gym space type' +
-                            str(type(gym_action_space)))
+                            str(self._env.action_space))
         logger.info(env=env)
-        
+        obs = env.reset()
+        self._state_shape = obs.shape 
+
+    @property
+    def on_gpu(self) -> bool:
+        return self._on_gpu
+    
     @property
     def action_space(self) -> ActionSpace:
         return self._action_space
@@ -52,10 +59,10 @@ class OpenAIGym(Scenario):
     def state_shape(self) -> Tuple:
         return self._state_shape
 
-    def render(self):
+    def render(self) -> None:
         self._env.render()
 
-    def play(self):
+    def play(self) -> None:
         raise Exception("Cannot play whole scenario for OpenAI Gym.")
 
     @property
@@ -67,25 +74,33 @@ class OpenAIGym(Scenario):
     def elem(self) -> Data:
         return self.__data
 
-    def reset(self) -> Scenario:
-        next_state = tensor(self._env.reset(), dtype=torch.float)
+    @property
+    def mode(self) -> str: 
+        return "single"
+
+    def reset(self) -> OpenAIGym:
+        next_state = tensor(self._env.reset())
         if next_state.ndim == 0:
-            next_state = next_state.view(-1)
-        self.__data = Data(next_state=next_state)
+            next_state = next_state.flatten()
+        self.__data = Data(next_state=next_state, on_gpu=self._on_gpu)
         return self
 
-    def step(self, action: List) -> Scenario:
+    def step(self, action: List) -> OpenAIGym:
         if self._action_type == 'Discrete':
             next_state, reward, done, _ = self._env.step(action[0])
+            reward=torch.tensor(reward).int()
         elif self._action_type == 'Box':
-            action = tensor(action, dtype=torch.float).view(-1)
+            action = tensor(action, dtype=torch.int).flatten()
             next_state, reward, done, _ = self._env.step(action)
-        next_state = tensor(next_state, dtype=torch.float)
+        next_state = tensor(next_state)
+        done = tensor(done, dtype=bool)
         if next_state.ndim == 0:
-            next_state = next_state.view(-1)
+            next_state = next_state.flatten()
         self.__data = Data(state=self.elem.next_state,
                     action=action,
                     next_state=next_state,
                     reward=reward,
-                    done_flag=done)
+                    done_flag=done,
+                    on_gpu=self._on_gpu)
         return self
+

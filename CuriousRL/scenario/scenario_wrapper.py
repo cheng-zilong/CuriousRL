@@ -12,6 +12,14 @@ class ScenarioWrapper(Scenario):
         self.__scenatio = scenario
 
     @property
+    def mode(self) -> str: 
+        return self.__scenatio.mode
+
+    @property
+    def on_gpu(self) -> bool:
+        return self.__scenatio.on_gpu
+
+    @property
     def action_space(self)  -> Union[ActionSpace, List[ActionSpace]]:
         return self.__scenatio.action_space
 

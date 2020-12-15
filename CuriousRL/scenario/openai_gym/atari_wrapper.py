@@ -1,5 +1,4 @@
 from __future__ import annotations
-from torch import Tensor
 import torch
 from collections import deque
 from gym import spaces
@@ -7,10 +6,9 @@ import numpy as np
 import gym
 import cv2
 cv2.ocl.setUseOpenCL(False)
-from typing import TYPE_CHECKING, List, Tuple
+from typing import Tuple
 
-from CuriousRL.data import Data, ActionSpace
-from CuriousRL.utils.config import global_config
+from CuriousRL.data import Data
 from CuriousRL.utils.Logger import logger
 from CuriousRL.scenario import ScenarioWrapper, Scenario
 
@@ -25,20 +23,19 @@ class AtariScenarioWrapper(ScenarioWrapper):
                     stack_num=stack_num,
                     is_clip_reward=is_clip_reward)
         
-
     def reset(self) -> Scenario:
         self._scenario.reset()
         state = torch.transpose(self._scenario.elem.next_state, 0, 2)
         for _ in range(self._stack_num):
             self._frames.append(state)
         new_state = torch.cat(tuple(self._frames), dim=0)
-        self.__data = Data(next_state=new_state)
+        self.__data = Data(next_state=new_state, on_gpu=self.on_gpu)
         return self
 
     def step(self, action) -> Scenario:
         self._scenario.step(action)
         new_reward = torch.sign(
-            self._scenario.elem.reward) if self._is_clip_reward else data.reward  # clip reward
+            self._scenario.elem.reward) if self._is_clip_reward else self._scenario.elem.reward  # clip reward
         self._frames.append(torch.transpose(
             self._scenario.elem.next_state, 0, 2))
         new_state = torch.cat(tuple(self._frames), dim=0)
@@ -46,7 +43,8 @@ class AtariScenarioWrapper(ScenarioWrapper):
                            action=self._scenario.elem.action,
                            next_state=new_state,
                            reward=new_reward,
-                           done_flag=self._scenario.elem.done_flag)
+                           done_flag=self._scenario.elem.done_flag, 
+                           on_gpu=self.on_gpu)
         return self
 
     @property
@@ -60,7 +58,7 @@ class AtariScenarioWrapper(ScenarioWrapper):
         return new_shape
 
 class NoopResetEnv(gym.Wrapper):
-    def __init__(self, env, noop_max=30):
+    def __init__(self, env:gym.Env, noop_max:int=30):
         """Sample initial states by taking random number of no-ops on reset.
         No-op is assumed to be action 0.
         """
@@ -89,9 +87,8 @@ class NoopResetEnv(gym.Wrapper):
     def step(self, ac):
         return self.env.step(ac)
 
-
 class FireResetEnv(gym.Wrapper):
-    def __init__(self, env):
+    def __init__(self, env:gym.Env):
         """Take action on reset for environments that are fixed until firing."""
         gym.Wrapper.__init__(self, env)
         assert env.unwrapped.get_action_meanings()[1] == 'FIRE'
@@ -110,9 +107,8 @@ class FireResetEnv(gym.Wrapper):
     def step(self, ac):
         return self.env.step(ac)
 
-
 class EpisodicLifeEnv(gym.Wrapper):
-    def __init__(self, env):
+    def __init__(self, env:gym.Env):
         """Make end-of-life == end-of-episode, but only reset on true game over.
         Done by DeepMind for the DQN and co. since it helps value estimation.
         """
@@ -147,9 +143,8 @@ class EpisodicLifeEnv(gym.Wrapper):
         self.lives = self.env.unwrapped.ale.lives()
         return obs
 
-
 class MaxAndSkipEnv(gym.Wrapper):
-    def __init__(self, env, skip=4):
+    def __init__(self, env:gym.Env, skip=4):
         """Return only every `skip`-th frame"""
         gym.Wrapper.__init__(self, env)
         # most recent raw observations (for max pooling across time steps)
@@ -173,7 +168,6 @@ class MaxAndSkipEnv(gym.Wrapper):
         # Note that the observation on the done=True frame
         # doesn't matter
         max_frame = self._obs_buffer.max(axis=0)
-
         return max_frame, total_reward, done, info
 
     def reset(self, **kwargs):
@@ -185,9 +179,8 @@ class MaxAndSkipEnv(gym.Wrapper):
         else:
             return self.env.render(mode)
 
-
 class WarpFrame(gym.ObservationWrapper):
-    def __init__(self, env):
+    def __init__(self, env:gym.Env):
         """Warp frames to 84x84 as done in the Nature paper and later work."""
         gym.ObservationWrapper.__init__(self, env)
         self.width = 84
@@ -200,7 +193,6 @@ class WarpFrame(gym.ObservationWrapper):
         frame = cv2.resize(frame, (self.width, self.height),
                            interpolation=cv2.INTER_AREA)
         return frame[:, :, None]
-
 
 def wrap_deepmind(env_name, episode_life=True):
     """Configure environment for DeepMind-style Atari."""

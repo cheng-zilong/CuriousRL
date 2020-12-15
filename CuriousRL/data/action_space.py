@@ -1,8 +1,7 @@
 from __future__ import annotations
 import torch
 from torch import Tensor
-from typing import Union, Tuple
-from CuriousRL.utils.config import global_config
+from typing import Union, Tuple, List
 import copy
 import numpy as np
 

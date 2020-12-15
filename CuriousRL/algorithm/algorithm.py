@@ -23,3 +23,8 @@ class Algorithm(ABC):
     def name(self):
         return self.__class__.__name__
 
+    # @property
+    # @abstractmethod
+    # def on_gpu(self):
+    #     return self._on_gpu
+

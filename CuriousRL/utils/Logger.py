@@ -29,7 +29,7 @@ class Logger(object):
         return self._logger_path
 
     def __new__(cls):  
-        """This class uses singleton mode
+        """This class uses single mode
         """
         if not hasattr(cls, '_instance'):
             orig = super(Logger, cls)

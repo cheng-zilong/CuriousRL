@@ -1,4 +1,6 @@
 # %%
+from torch._C import dtype
+from CuriousRL.data import batch
 from CuriousRL.data.data import Data
 from CuriousRL.data.batch import Batch
 from CuriousRL.data.dataset import Dataset
@@ -8,12 +10,24 @@ import numpy as np
 import time
 if __name__ == "__main__":
     global_config.set_is_cuda(True)
-    dataset_test3 = Dataset(buffer_size = 5)
-    data2 = Data(state = np.random.random((5, 5)), action = np.random.random(10))
-    data3 = Data(state = np.random.random((5, 5)), action = np.random.random(10))
-    batch1 = Batch(data2,data2,data2).share_memmory_()
+
+    data2 = Data(state = np.random.randint((5, 5)), action = np.random.random(10), on_gpu=True)
+    data3 = Data(state = np.random.randint((5, 5)), action = np.random.random(10), on_gpu=True)
+    batch1 = Batch(data2,data2,data2, on_gpu=False).share_memmory_()
+    batch2 = Batch(state = np.random.randint((5, 5)), action = np.random.random((5,10)), on_gpu=False)
     batch1[0] = data3
-    print(batch1._batch_dict["state"])
+    print(batch1)
+    print("$$$$$$$$$$$$$$$$$$$$$$$$$$$$")
+    print(batch2)
+    print("$$$$$$$$$$$$$$$$$$$$$$$$$$$$")
+    dataset_test3 = Dataset(buffer_size = 5, on_gpu=False)
+    dataset_test3.update(data3)
+    dataset_test3.update(batch1)
+    dataset_test3.update(batch1)
+    dataset_test3.update(data3)
+    dataset_test3 = dataset_test3.to_gpu()
+    print(dataset_test3.fetch_random_data(3))
+
     # dataset1 = Dataset(10000)
     # time1 = time.time()
     # for i in range(len(dataset1)):
