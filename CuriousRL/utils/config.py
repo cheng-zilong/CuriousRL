@@ -8,14 +8,11 @@ class GlobalConfiguration(object):
     ``set_random_see(seed)`` provides global seed for numpy, PyTorch, and etc.
     """
     def __init__(self):
-        self._is_cuda = True
-        self._device = torch.device("cuda:0")
-        self._random_seed = np.random.randint(10000)
-        self.set_random_seed(self._random_seed)
+        self.set_is_cuda(True)
+        self.set_random_seed(np.random.randint(1000000))
 
     def __new__(cls):  
-        """This class uses single mode
-        """
+        """This class uses singleton mode"""
         if not hasattr(cls, '_instance'):
             orig = super(GlobalConfiguration, cls)
             cls._instance = orig.__new__(cls)
@@ -29,14 +26,14 @@ class GlobalConfiguration(object):
     def device(self):
         return self._device    
 
-    def set_random_seed(self, seed:bool):
-        torch.manual_seed(seed)
-        np.random.seed(seed)
-        self._random_seed = seed 
-
     @property
     def random_seed(self):
         return self._random_seed
+
+    def set_random_seed(self, seed:int):
+        torch.manual_seed(seed)
+        np.random.seed(seed)
+        self._random_seed = seed 
 
     def set_is_cuda(self, is_cuda:bool, device = None):
         self._is_cuda = is_cuda
@@ -46,10 +43,7 @@ class GlobalConfiguration(object):
             else:
                 self._device = device
         else:
-            if device == None:
-                self._device = torch.device("cpu")
-            else:
-                self._device = device
+            self._device = torch.device("cpu")
 
 
 global_config = GlobalConfiguration()

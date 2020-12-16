@@ -39,10 +39,9 @@ class Batch(DataParant):
     :type on_gpu: bool
     """
 
-    def __init__(self, *args: Data, **kwargs):
+    def __init__(self, on_gpu, *args: Data, **kwargs):
         self._batch_dict = {}
-        self._on_gpu = kwargs['on_gpu']
-        kwargs.pop('on_gpu')
+        self._on_gpu = on_gpu
         if len(args) != 0:
             for key in ACCESSIBLE_KEY:
                 if args[0]._data_dict[key] is None:

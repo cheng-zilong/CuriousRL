@@ -12,7 +12,6 @@ from .scenario import Scenario
 from CuriousRL.utils.config import global_config
 from CuriousRL.data import Data, ActionSpace, Batch
 
-
 def _worker(index, scenario: Scenario, share_memmory_batch: Batch, pipe, seed):
     global_config.set_random_seed(seed + index)
     while True:
@@ -26,10 +25,11 @@ def _worker(index, scenario: Scenario, share_memmory_batch: Batch, pipe, seed):
             if elem.done_flag:
                 scenario.reset()
             pipe.send(True)  # Send Done
+        elif command == 'render':
+            scenario.render()
         else:
             raise RuntimeError(
                 'Received unknown command `{0}`.'.format(command))
-
 
 class ScenaroAsync(ScenarioWrapper):
     def __init__(self,
@@ -89,10 +89,11 @@ class ScenaroAsync(ScenarioWrapper):
         return self._state_shape
 
     def render(self) -> None:
-        raise Exception("ScenaroAsync instance cannot render.")
+        for pipe in self._parent_pipes:
+            pipe.send(('render', None))
 
     def play(self) -> None:
-        raise Exception("ScenaroAsync instance cannot play.")
+        raise Exception('ScenaroAsync instance cannot play.')
 
     @property
     def name(self) -> str:
@@ -118,5 +119,5 @@ class ScenaroAsync(ScenarioWrapper):
             return self
 
     @property
-    def mode(self) -> str: 
+    def mode(self) -> str:
         return "multiple"

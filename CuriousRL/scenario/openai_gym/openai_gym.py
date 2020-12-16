@@ -4,15 +4,13 @@ from torch._C import dtype
 from CuriousRL.scenario import Scenario
 from torch import Tensor, tensor
 import torch
-from CuriousRL.utils.config import global_config
 from CuriousRL.utils.Logger import logger
 from CuriousRL.data import ActionSpace, Data
 import gym
-import numpy as np
 from typing import TYPE_CHECKING, List, Tuple
 
 class OpenAIGym(Scenario):
-    def __init__(self, env: gym.Env, on_gpu):
+    def __init__(self, on_gpu:bool, env: gym.Env):
         self._env = env
         self._on_gpu = on_gpu
         if isinstance(self._env.action_space, gym.spaces.Discrete):
@@ -88,19 +86,26 @@ class OpenAIGym(Scenario):
     def step(self, action: List) -> OpenAIGym:
         if self._action_type == 'Discrete':
             next_state, reward, done, _ = self._env.step(action[0])
-            reward=torch.tensor(reward).int()
         elif self._action_type == 'Box':
             action = tensor(action, dtype=torch.int).flatten()
             next_state, reward, done, _ = self._env.step(action)
+        else:
+            next_state, reward, done = None, None, None
+            raise Exception("No action type \"" + self._action_type + "\"!")
+        reward=torch.tensor(reward)
         next_state = tensor(next_state)
         done = tensor(done, dtype=bool)
         if next_state.ndim == 0:
             next_state = next_state.flatten()
-        self.__data = Data(state=self.elem.next_state,
-                    action=action,
-                    next_state=next_state,
-                    reward=reward,
-                    done_flag=done,
-                    on_gpu=self._on_gpu)
+        try:
+            self.__data = Data(state=self.elem.next_state,
+                                action=action,
+                                next_state=next_state,
+                                reward=reward,
+                                done_flag=done,
+                                on_gpu=self._on_gpu)
+        except AttributeError:
+            logger.error("Must call Scenario.reset() before step!")
+            raise Exception("Must call Scenario.reset() before step!")
         return self
 

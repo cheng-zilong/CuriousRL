@@ -13,8 +13,8 @@ if __name__ == "__main__":
 
     data2 = Data(state = np.random.randint((5, 5)), action = np.random.random(10), on_gpu=True)
     data3 = Data(state = np.random.randint((5, 5)), action = np.random.random(10), on_gpu=True)
-    batch1 = Batch(data2,data2,data2, on_gpu=False).share_memmory_()
-    batch2 = Batch(state = np.random.randint((5, 5)), action = np.random.random((5,10)), on_gpu=False)
+    batch1 = Batch(True, data2,data2,data2).share_memmory_()
+    batch2 = Batch(on_gpu=False, state = np.random.randint((5, 5)), action = np.random.random((5,10)))
     batch1[0] = data3
     print(batch1)
     print("$$$$$$$$$$$$$$$$$$$$$$$$$$$$")
