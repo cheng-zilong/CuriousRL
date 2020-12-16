@@ -2,14 +2,14 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 import numpy as np
 from numba import njit
-from CuriousRL.algorithm.algo_wrapper import AlgoWrapper
+from CuriousRL.algorithm.algorithm import Algorithm
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from .ilqr_obj_fun import iLQRObjectiveFunction
     from .ilqr_dynamic_model import iLQRDynamicModel
 
 
-class iLQRWrapper(AlgoWrapper):
+class iLQRWrapper(Algorithm):
     """This is a wrapper class for all the iLQR algorithms. 
     This class provides several basic methods for the iLQR algorithm realization. 
     This class cannot create algorithm instance. 
@@ -44,11 +44,6 @@ class iLQRWrapper(AlgoWrapper):
                          line_search_method=line_search_method,
                          stopping_method=stopping_method,
                          **kwargs)
-        self._stopping_criterion = stopping_criterion
-        self._max_line_search = max_line_search
-        self._gamma = gamma
-        self._line_search_method = line_search_method
-        self._stopping_method = stopping_method
         self._obj_fun_value_last = np.inf
 
     @property
@@ -88,13 +83,13 @@ class iLQRWrapper(AlgoWrapper):
         trajectory_current = np.zeros(
             (self.dynamic_model._T, self.dynamic_model._n+self.dynamic_model._m, 1))
         # Line Search if the z value is greater than zero
-        for _ in range(self._max_line_search):
+        for _ in range(self.kwargs['max_line_search']):
             trajectory_current = self.dynamic_model.update_traj(
                 trajectory, K_matrix, k_vector, alpha)
             obj_fun_value_current = self.obj_fun.eval_obj_fun(
                 trajectory_current)
             obj_fun_value_delta = obj_fun_value_current-self._obj_fun_value_last
-            alpha = alpha * self._gamma
+            alpha = alpha * self.kwargs['gamma']
             if obj_fun_value_delta < 0:
                 return trajectory_current, obj_fun_value_current
         return trajectory, self._obj_fun_value_last
@@ -117,13 +112,13 @@ class iLQRWrapper(AlgoWrapper):
         trajectory_current = np.zeros(
             (self.dynamic_model._T, self.dynamic_model._n+self.dynamic_model._m, 1))
         # Line Search if the z value is greater than zero
-        for _ in range(self._max_line_search):
+        for _ in range(self.kwargs['max_line_search']):
             trajectory_current = self.dynamic_model.update_traj(
                 trajectory, K_matrix, k_vector, alpha)
             obj_fun_value_current = self.obj_fun.eval_obj_fun(
                 trajectory_current)
             obj_fun_value_delta = obj_fun_value_current-self._obj_fun_value_last
-            alpha = alpha * self._gamma
+            alpha = alpha * self.kwargs['gamma']
             if obj_fun_value_delta < 0 and (not np.isnan(obj_fun_value_delta)):
                 return trajectory_current, obj_fun_value_current
         return trajectory, self._obj_fun_value_last
@@ -155,7 +150,7 @@ class iLQRWrapper(AlgoWrapper):
         :rtype: bool
         """
         obj_fun_value_delta = obj_fun_value_current - self._obj_fun_value_last
-        if (abs(obj_fun_value_delta) < self._stopping_criterion):
+        if (abs(obj_fun_value_delta) < self.kwargs['stopping_criterion']):
             return True
         return False
 
@@ -169,7 +164,7 @@ class iLQRWrapper(AlgoWrapper):
         :rtype: bool
         """
         obj_fun_value_delta = obj_fun_value_current - self._obj_fun_value_last
-        if (abs(obj_fun_value_delta/self._obj_fun_value_last) < self._stopping_criterion):
+        if (abs(obj_fun_value_delta/self._obj_fun_value_last) < self.kwargs['stopping_criterion']):
             return True
         return False
 
@@ -191,19 +186,19 @@ class iLQRWrapper(AlgoWrapper):
         :rtype: Tuple[array[T, m+n, 1], array[T, n+m, n+m], array[T, n+m, 1], array[T, n, n+m], float, bool]
         """
         # Do line search
-        if self._line_search_method == "vanilla":
+        if self.kwargs['line_search_method'] == "vanilla":
             new_trajectory, obj_fun_value_current = self._vanilla_line_search(
                 trajectory, K_matrix, k_vector)
-        elif self._line_search_method == "feasibility":
+        elif self.kwargs['line_search_method'] == "feasibility":
             new_trajectory, obj_fun_value_current = self._feasibility_line_search(
                 trajectory, K_matrix, k_vector)
-        elif self._line_search_method == "none":
+        elif self.kwargs['line_search_method'] == "none":
             new_trajectory, obj_fun_value_current = self._none_line_search(
                 trajectory, K_matrix, k_vector)
         # Check the stopping criterion
-        if self._stopping_method == "vanilla":
+        if self.kwargs['stopping_method'] == "vanilla":
             is_stop = self._vanilla_stopping_criterion(obj_fun_value_current)
-        elif self._stopping_method == "relative":
+        elif self.kwargs['stopping_method'] == "relative":
             is_stop = self._relative_stopping_criterion(obj_fun_value_current)
         # Do forward pass
         C_matrix = self.obj_fun.eval_hessian_obj_fun(new_trajectory)

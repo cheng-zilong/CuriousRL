@@ -11,17 +11,17 @@ class Logger(object):
     WARN = 30
     ERROR = 40
     DISABLED = 50
-    MIN_LEVEL = 0
-    IS_USE_LOGGER = True
-    FOLDER_NAME = None
-    IS_SAVE_JSON = False
+    __min_level = 0
+    __is_use_logger = True
+    __folder_name = None
+    __is_save_json = False
 
     def __init__(self):
         _logger.remove()
         _logger.add(sys.stdout, format="<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> - <red>{level}</red>: {message}")
         from datetime import datetime
-        self.FOLDER_NAME = datetime.now().strftime("%Y_%m_%d_%H_%M_%S_%f")
-        self._logger_path = os.path.join("logs",  self.FOLDER_NAME)
+        self.__folder_name = datetime.now().strftime("%Y_%m_%d_%H_%M_%S_%f")
+        self._logger_path = os.path.join("logs",  self.__folder_name)
         self._logger_id = _logger.add(os.path.join(self._logger_path, "main.log"), format="<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> - <red>{level}</red>: {message}", delay=True)
 
     @property
@@ -37,7 +37,7 @@ class Logger(object):
         return cls._instance
 
     def set_is_use_logger(self, is_use_logger):
-        self.IS_USE_LOGGER = is_use_logger
+        self.__is_use_logger = is_use_logger
         if not is_use_logger:
             _logger.remove(self._logger_id)
             self._logger_id = None
@@ -54,26 +54,26 @@ class Logger(object):
                 _logger.info("[+] The folder \"" + folder_name + "\" exits! Remove it successfully!")
             else:
                 self.info("[+] Folder \"" + folder_name + "\" already exists! Logger file will be added!")
-        self.FOLDER_NAME = folder_name
-        self._logger_path = os.path.join("logs",  self.FOLDER_NAME)
+        self.__folder_name = folder_name
+        self._logger_path = os.path.join("logs",  self.__folder_name)
         self._logger_id = _logger.add(os.path.join(self._logger_path, "main.log"), format="<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> - <red>{level}</red>: {message}", delay=True)
         return self
 
     def set_is_save_json(self, is_save_json):
-        self.IS_SAVE_JSON = is_save_json
+        self.__is_save_json = is_save_json
         return self
 
     def save_to_json(self, **kwargs): # 
         """ if IS_SAVE_JSON = False, then save it to memmory
         """
         data_str = json.dumps(kwargs)
-        if self.IS_SAVE_JSON:
-            if not self.IS_USE_LOGGER:
+        if self.__is_save_json:
+            if not self.__is_use_logger:
                 raise Exception("Logger must be used to save json. Please call \"logger.set_is_use_logger(True)\".") 
             try:
-                file_object = open(os.path.join("logs", self.FOLDER_NAME, "main.json"), 'a')
+                file_object = open(os.path.join("logs", self.__folder_name, "main.json"), 'a')
             except PermissionError:
-                file_object = open(os.path.join("logs", self.FOLDER_NAME, "main.json"), 'a')
+                file_object = open(os.path.join("logs", self.__folder_name, "main.json"), 'a')
             file_object.write(data_str + "\n")
             file_object.close()
         else:
@@ -82,11 +82,11 @@ class Logger(object):
     def read_from_json(self, folder_name = None, no_iter = -1):
         """ if IS_SAVE_JSON = False and folder_name = None, then read it from memmory
         """
-        if self.IS_SAVE_JSON == False and folder_name == None:
+        if self.__is_save_json == False and folder_name is None:
             return self.memory_json
 
-        if folder_name == None:
-            folder_name = self.FOLDER_NAME
+        if folder_name is None:
+            folder_name = self.__folder_name
         try:
             file_object = open(os.path.join("logs", folder_name, "main.json"))
             for i, line in enumerate(file_object):
@@ -102,22 +102,22 @@ class Logger(object):
         """
         Set logging threshold on current logger.
         """
-        self.MIN_LEVEL = level
+        self.__min_level = level
 
     def debug(self, *args):
-        if self.MIN_LEVEL <= self.DEBUG:
+        if self.__min_level <= self.DEBUG:
             _logger.debug(*args)
 
     def info(self, *args):
-        if self.MIN_LEVEL <= self.INFO:
+        if self.__min_level <= self.INFO:
             _logger.info(*args)
 
     def warn(self, *args):
-        if self.MIN_LEVEL <= self.WARN:
+        if self.__min_level <= self.WARN:
             _logger.warning(*args)
 
     def error(self, *args):
-        if self.MIN_LEVEL <= self.ERROR:
+        if self.__min_level <= self.ERROR:
             _logger.error(*args)
 
 # Global logger

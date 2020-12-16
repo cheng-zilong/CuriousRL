@@ -3,105 +3,126 @@ from typing import Union
 import torch
 import numpy as np
 from .data import Data
+from .batch import Batch
 from .data import ACCESSIBLE_KEY
+from typing import TYPE_CHECKING, Union
 from CuriousRL.utils.config import global_config
-import copy
 
 class Dataset(object):
-    """This is a class for building the dataset in the learning process.
+    """This is a class for building the dataset in the learning process. 
+    The dimension of state and dimension of action are not necessary,
+    because these infomation can be obtained when the dataset is updated.
+    The only necessary parameter is ``buffer_size``.
 
     :param buffer_size: The size of the dataset. 
     :type buffer_size: int
-    :param state_dim: The dimension of the state data. For example, 
-        the state dimension of a binary image 
-        is (512, 512). The state of a cartpole system is (4,) or 4, 
-        which includes the position, velocity, angle of the
-        pole, and the angular velocity of the pole.
-    :type state_dim: Tuple(int) or int
-    :param action_dim: The dimension of the action data. For example, the 
-        state dimension of a cartpole system is 1, 
-        which is the force applied to the cart. 
-        The action dimension of a vehicle system is 2, 
-        which are the steering angle and the accelaration. 
-    :type action_dim: int
     """
 
-    def __init__(self, buffer_size,
-                 state_dim: Union[Tuple(int), int],
-                 action_dim: int):
-        if isinstance(state_dim, int):
-            state_dim = (state_dim,)
+    def __init__(self, buffer_size):
         self._buffer_size = buffer_size
-        self._state_dim = state_dim
-        self._action_dim = action_dim
-        self._update_key = 0
-        self._total_update = 0  # totally number of obtained data
+        self._dataset_dict = {}
+        self._update_index = 0
+        self._total_update_num = 0  # totally number of obtained data
+        self._random_batch_dict = {}
+        self._random_batch_size = None
 
-    def update_dataset(self, data: Data):
+    def _init_dataset_from_data(self, data: Data):
+        for key in ACCESSIBLE_KEY:
+            if data._data_dict[key] is None:
+                self._dataset_dict[key] = None
+                continue
+            if key in {"state", "next_state", "action"}:
+                self._dataset_dict[key] = torch.zeros(
+                    (self._buffer_size, *data._data_dict[key].shape), device=global_config.device)
+            elif key == "reward":
+                self._dataset_dict[key] = torch.zeros((self._buffer_size), device=global_config.device)
+            elif key == "done_flag":
+                self._dataset_dict[key] = torch.zeros(
+                    (self._buffer_size), dtype=torch.bool, device=global_config.device)
+
+    def _init_dataset_with_batch(self, batch: Batch):
+        for key in ACCESSIBLE_KEY:
+            if batch._batch_dict[key] is None:
+                self._dataset_dict[key] = None
+                continue
+            if key in {"state", "next_state", "action"}:
+                self._dataset_dict[key] = torch.zeros(
+                    (self._buffer_size, *batch._batch_dict[key].shape[1:]), device=global_config.device)
+            elif key == "reward":
+                self._dataset_dict[key] = torch.zeros(
+                    (self._buffer_size),device=global_config.device)
+            elif key == "done_flag":
+                self._dataset_dict[key] = torch.zeros(
+                    (self._buffer_size), dtype=torch.bool,device=global_config.device)
+
+    def update(self, new_data: Union[Data, Batch]):
         """Update the new data into the dataset. If the dataset is full, 
         then this method will remove the oldest data in the dataset,
         and update the new data alternatively.
 
-        :param data: New data
-        :type data: Data
-        """
-        if self._total_update == 0: # If this is the first update, initial the dataset
-            self._dataset_dict = {}
-            for key in data._data_dict:
-                if global_config.is_cuda:
-                    if key == "state" or key == "next_state":
-                        self._dataset_dict[key] = torch.zeros((self._buffer_size, *data._data_dict[key].shape[1:])).cuda()
-                    elif key == "action":
-                        self._dataset_dict[key] = torch.zeros((self._buffer_size, data._data_dict[key].shape[1])).cuda()
-                    elif key == "reward":
-                        self._dataset_dict[key] = torch.zeros((self._buffer_size)).cuda()
-                    elif key == "done_flag":
-                        self._dataset_dict[key] = torch.zeros((self._buffer_size), dtype=torch.bool).cuda()
-                else:
-                    if key == "state" or key == "next_state":
-                        self._dataset_dict[key] = torch.zeros((self._buffer_size, *data._data_dict[key].shape[1:]))
-                    elif key == "action":
-                        self._dataset_dict[key] = torch.zeros((self._buffer_size, data._data_dict[key].shape[1]))
-                    elif key == "reward":
-                        self._dataset_dict[key] = torch.zeros((self._buffer_size))
-                    elif key == "done_flag":
-                        self._dataset_dict[key] = torch.zeros((self._buffer_size), dtype=torch.bool)
-        self._total_update += len(data)
-        # if not exceed the last data in the dataset
-        if self._update_key+len(data) <= self._buffer_size:
-            for key in self._dataset_dict:    
-                self._dataset_dict[key][self._update_key:self._update_key + len(data)] = data._data_dict[key]
-            self._update_key += len(data)
-            if self._update_key == self._buffer_size:
-                self._update_key = 0
-        else:  # if exceed
-            exceed_number = len(data) + self._update_key - self._buffer_size
-            for key in self._dataset_dict:
-                self._dataset_dict[key][self._update_key:] = data._data_dict[key][:self._buffer_size-self._update_key]
-                ##########################
-                self._dataset_dict[key][:exceed_number] = data._data_dict[key][self._buffer_size-self._update_key:]
-            self._update_key = exceed_number
+        The parameter can be a ``Data`` instance, or a ``Batch`` instance.
 
-    def get_current_buffer_size(self):
-        """Get the current data buffer size. If the number of the current data is less than the buffer size, 
-        return current number of data. Otherwise, return the size of the dataset.
+        :param new_data: New data
+        :type new_data: Union[Data, Batch]
+        """
+        if self._total_update_num == 0:  # If this is the first update, initial the dataset
+            if isinstance(new_data, Data):
+                self._init_dataset_from_data(new_data)
+            elif isinstance(new_data, Batch):
+                self._init_dataset_with_batch(new_data)
+            else:
+                raise Exception(
+                    'Only support updating dataset from Data and Batch instances.')
+        if isinstance(new_data, Batch):
+            new_data_len = len(new_data)
+            self._total_update_num += new_data_len
+            # if not exceed the last data in the dataset
+            if self._update_index+new_data_len <= self._buffer_size:
+                for key in ACCESSIBLE_KEY:
+                    if self._dataset_dict[key] is not None:
+                        self._dataset_dict[key][self._update_index:self._update_index +
+                                                new_data_len] = new_data._batch_dict[key]
+                self._update_index += new_data_len
+                if self._update_index == self._buffer_size:
+                    self._update_index = 0
+            else:  # if exceed
+                exceed_number = new_data_len + self._update_index - self._buffer_size
+                for key in ACCESSIBLE_KEY:
+                    if self._dataset_dict[key] is not None:
+                        self._dataset_dict[key][self._update_index:
+                                                ] = new_data._batch_dict[key][:self._buffer_size-self._update_index]
+                        self._dataset_dict[key][:exceed_number] = new_data._batch_dict[key][self._buffer_size-self._update_index:]
+                self._update_index = exceed_number
+        elif isinstance(new_data, Data):
+            self._total_update_num += 1
+            for key in ACCESSIBLE_KEY:
+                if self._dataset_dict[key] is not None:
+                    self._dataset_dict[key][self._update_index] = new_data._data_dict[key]
+            self._update_index += 1
+            if self._update_index == self._buffer_size:
+                self._update_index = 0
+
+    @property
+    def current_buffer_size(self):
+        """Get the number of data in the current buffer.
 
         :return: [description]
         :rtype: [type]
         """
-        return min(self._total_update, self._buffer_size)
+        return min(self._total_update_num, self._buffer_size)
 
-    def fetch_all_data(self):
+    def fetch_all_data(self) -> Batch:
         """Return all the data in the dataset.
 
         :return: All data
-        :rtype: Data
+        :rtype: Batch
         """
         index = list(range(self._buffer_size))
-        return self.fetch_data_by_index(index)
+        return self.fetch_data(index)
 
-    def fetch_data_by_index(self, index: list) -> Data:
-        """Return the data by specifying the index. For example, if index = [1,2,5], then three datas in the dataset will be returned. 
+    def fetch_data(self, index: list) -> Batch:
+        """Return the data by specifying the index. 
+        For example, if index = [1,2,5], then a batch with three datas in the dataset will be returned. 
 
         :param index: The index of the data
         :type index: list
@@ -109,29 +130,52 @@ class Dataset(object):
         :rtype: Data
         """
         temp_dict = {}
-        for key in self._dataset_dict:
-            temp_dict[key] = self._dataset_dict[key][index]
-        data = Data(**temp_dict)
+        for key in ACCESSIBLE_KEY:
+            if self._dataset_dict[key] is not None:
+                temp_dict[key] = self._dataset_dict[key][index]
+        data = Batch(**temp_dict)
         return data
 
-    def fetch_data_randomly(self, num_of_data: int) -> Data:
-        """Return the data with random keyes
+    def fetch_random_data(self, num_of_data: int) -> Batch:
+        """Return the data with random index
 
         :param num_of_data: How many data will be returned
         :type num_of_data: int
         :return: Data with random keyes
         :rtype: Data
         """
-        if self._total_update < self._buffer_size:
-            if num_of_data > self._total_update:
-                raise Exception("The current buffer size is %d. Number of random data size is %d." % (self._total_update, num_of_data) +
-                                "The latter must be less or equal than the former.")
-            index = np.random.choice(
-                self._total_update, size=num_of_data, replace=False)
-        else:
-            if num_of_data > self._buffer_size:
-                raise Exception("The current buffer size is %d. Number of random data size is %d." % (self._buffer_size, num_of_data) +
-                                "The latter must be less or equal than the former.")
-            index = np.random.choice(
-                self._buffer_size, size=num_of_data, replace=False)
-        return self.fetch_data_by_index(index)
+        if self._random_batch_size != num_of_data: # initial random batch
+            self._random_batch_size = num_of_data
+            for key in ACCESSIBLE_KEY:
+                if self._dataset_dict[key] is None:
+                    self._random_batch_dict[key] = None
+                    continue
+                if key in {"state", "next_state", "action"}:
+                    self._random_batch_dict[key] = torch.zeros(
+                        (num_of_data, *self._dataset_dict[key].shape[1:]), device=global_config.device)
+                elif key == "reward":
+                    self._random_batch_dict[key] = torch.zeros(
+                        (num_of_data), device=global_config.device)
+                elif key == "done_flag":
+                    self._random_batch_dict[key] = torch.zeros(
+                        (num_of_data), dtype=torch.bool, device=global_config.device)
+        if num_of_data > self.current_buffer_size:
+            raise Exception("The current buffer size %d < Number of random data size %d." % (self.current_buffer_size, num_of_data))
+        index = torch.randint(high=self.current_buffer_size, size=(num_of_data,), device=global_config.device)
+        for key in ACCESSIBLE_KEY:
+            if self._dataset_dict[key] is not None:
+                self._random_batch_dict[key].copy_(self._dataset_dict[key][index])
+        return Batch(**self._random_batch_dict)
+
+    def __len__(self):
+        return self._buffer_size
+
+    def __str__(self):
+        string = ""
+        for key in ACCESSIBLE_KEY:
+            string += key
+            string += ":\n" + str(self._dataset_dict[key]) + "\n"
+        return string
+
+    def __repr__(self):
+        return self.__str__()
