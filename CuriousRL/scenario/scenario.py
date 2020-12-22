@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING, List, Tuple, Union, TypeVar
 
 from CuriousRL.data import Data, ActionSpace, Batch
 from CuriousRL.utils.Logger import logger
-TScenario = TypeVar("TScenario", bound="Scenario")
 
 class Scenario(ABC):
 
@@ -18,17 +17,7 @@ class Scenario(ABC):
 
     @property
     @abstractmethod
-    def mode(self) -> str: 
-        pass
-
-    @property
-    @abstractmethod
     def action_space(self) -> Union[ActionSpace, List[ActionSpace]]:
-        pass
-
-    @property
-    @abstractmethod
-    def state_shape(self) -> Tuple:
         pass
 
     @property
@@ -38,7 +27,7 @@ class Scenario(ABC):
 
     @property
     @abstractmethod
-    def elem(self) -> Union[Data, Batch]:
+    def curr_state(self) -> Tensor:
         pass
 
     @property
@@ -47,11 +36,11 @@ class Scenario(ABC):
         pass
 
     @abstractmethod
-    def reset(self)  -> TScenario:
+    def reset(self)  -> Tensor:
         pass
 
     @abstractmethod
-    def step(self, action: List) -> TScenario:
+    def step(self, action: List) -> Union[Data, Batch]:
         pass
 
     @abstractmethod

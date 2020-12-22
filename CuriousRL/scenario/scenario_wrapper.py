@@ -12,10 +12,6 @@ class ScenarioWrapper(Scenario):
         self.__scenatio = scenario
 
     @property
-    def mode(self) -> str: 
-        return self.__scenatio.mode
-
-    @property
     def on_gpu(self) -> bool:
         return self.__scenatio.on_gpu
 
@@ -34,21 +30,15 @@ class ScenarioWrapper(Scenario):
         """Name of the current scenario."""
         last_name = self.__scenatio.name
         return  self.__class__.__name__ + "<" + last_name + ">"
-
+        
     @property
-    @abstractmethod
-    def elem(self) -> Union[Data, Batch]:
-        pass
+    def curr_state(self) -> Tensor:
+        return self.__scenatio.curr_state
 
     @abstractmethod
-    def reset(self)  -> Scenario:
-        pass
+    def reset(self)  -> Tensor:
+        return self.__scenatio.reset()
 
     @abstractmethod
-    def step(self, action: List) -> Scenario:
-        pass
-
-    @property
-    @abstractmethod
-    def state_shape(self) -> Tuple:
-        pass
+    def step(self, action: List)  -> Union[Data, Batch]:
+        return self.__scenatio.reset(action)

@@ -7,7 +7,7 @@ from CuriousRL.utils.Logger import logger
 from CuriousRL.utils.config import global_config
 import matplotlib.pyplot as plt
 from CuriousRL.data import Data
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING, List, Tuple
 import torch
 from torch import Tensor, tensor
 import sys
@@ -187,14 +187,17 @@ class DynamicModel(Scenario):
         """Constraints of state and action variables."""
         return self._constr
 
-    def reset(self) -> Scenario:
+    @property
+    def curr_state(self) -> Tensor:
+        self._current_state
+
+    def reset(self)  -> Tensor:
         """Reset the current state to the initial state."""
         self._tau = 0
-        next_state = tensor(self._init_state[:, 0], dtype=torch.float).view(-1)
-        self.__data = Data(next_state=next_state)
-        return self
+        self._current_state  = tensor(self._init_state[:, 0], dtype=torch.float).view(-1)
+        return self._current_state
 
-    def step(self, action: List) -> Scenario:
+    def step(self, action: List) -> Data:
         """Evaulate the next state given an action. Return state, action, next_state, reward, done_flag in a ``Data`` instance."""
         self._tau += 1
         next_state = self._dynamic_function_lamdify(
@@ -207,15 +210,12 @@ class DynamicModel(Scenario):
         next_state = tensor(next_state, dtype=torch.float).view(-1)
         done_flag = True if self._tau == self._T else False
         action = tensor(action, dtype=torch.float).view(-1)
-        self.__data = Data(state=self.__data.next_state,
+        data = Data(state=self.__data.next_state,
                            action=action,
                            next_state=next_state,
                            reward=reward,
                            done_flag=done_flag)
-        return self
-
-    def data(self) -> Data:
-        return self.__data
+        return data
 
     def play(self, logger_folder=None, no_iter=-1):
         """ This method will play an animation for a whole episode.
@@ -241,3 +241,11 @@ class DynamicModel(Scenario):
             if self._is_interrupted:
                 return
         self._is_interrupted = True
+
+    @property
+    def on_gpu(self):
+        return False
+
+    @property
+    def name(self):
+        return self.__class__.__name__ + "<DynamicModel>"

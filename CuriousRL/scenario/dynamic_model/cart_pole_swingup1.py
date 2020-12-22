@@ -123,7 +123,4 @@ class CartPoleSwingUp1(DynamicModel):
         """ The ``ActionSpace`` of the scenario."""
         return self._action_space
 
-    @property
-    def state_shape(self):
-        return (4,)
 

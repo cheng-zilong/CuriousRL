@@ -1,16 +1,14 @@
 from __future__ import annotations
 from collections import deque
 import torch
-from torch._C import dtype
 from torch.functional import Tensor
 import torch.nn as nn
-import numpy as np
 import time as tm
 import copy
 
 from .example_network import ThreeLayerConvolutionalNetwork, TwoLayerAllConnetedNetwork
 from .action_select import DiscreteActionSelect
-from CuriousRL.scenario import Scenario
+from CuriousRL.scenario import Scenario, ScenaroAsync
 from CuriousRL.utils.config import global_config
 from CuriousRL.utils.Logger import logger
 from CuriousRL.algorithm import Algorithm
@@ -20,7 +18,6 @@ from CuriousRL.data.action_space import ActionSpace
 
 class DiscreteDQN(Algorithm):
     """ This class is to build DQN algorithm."""
-
     def __init__(self,
                  on_gpu,
                  iter_num=20,
@@ -83,14 +80,13 @@ class DiscreteDQN(Algorithm):
 
     def init(self, scenario: Scenario) -> DiscreteDQN:
         self._scenario = scenario
-        reset_elem = scenario.reset().elem
-        reset_state = reset_elem.next_state
+        reset_state = scenario.reset()
         if self._network is None:
-            if self._scenario.mode == "single" and reset_state.ndim > 1:  # is image
+            if (not isinstance(self._scenario, ScenaroAsync)) and reset_state.ndim > 1:  # is image
                 self._network = ThreeLayerConvolutionalNetwork(
                     reset_state.shape[0], len(scenario.action_space._action_range[0]))
                 self._worker_num=1
-            elif self._scenario.mode == "multiple" and reset_state.ndim > 2: # is image
+            elif isinstance(self._scenario, ScenaroAsync) and reset_state.ndim > 2: # is image
                 self._network = ThreeLayerConvolutionalNetwork(
                     reset_state.shape[1], len(scenario.action_space[0]._action_range[0]))
                 self._worker_num=reset_state.shape[0]
@@ -139,15 +135,15 @@ class DiscreteDQN(Algorithm):
             else:
                 self._eps *= self._eps_exp_decay_rate
             action = DiscreteActionSelect.eps_greedy(net=self._network, scenario=self._scenario,eps=self._eps)
-            new_elem = self._scenario.step(action).elem
-            total_reward += torch.sum(new_elem.reward)
+            new_batch_or_data = self._scenario.step(action)
+            total_reward += torch.sum(new_batch_or_data.reward)
             if self._is_train_render:
                 self._scenario.render()
-            self._dataset.update(new_elem)
+            self._dataset.update(new_batch_or_data)
             if self._dataset.current_buffer_size > self._start_learning_frames:
                 self._learn()
             if isinstance(self._scenario.action_space, ActionSpace): # if it is the single case, check done flag, in multiple case, auto reset
-                if new_elem.done_flag:
+                if new_batch_or_data.done_flag:
                     self._scenario.reset()
             one_frame_end_time = tm.time()
             if current_frame_counter%self._log_per_frames == 0:
@@ -164,31 +160,40 @@ class DiscreteDQN(Algorithm):
     def test(self) -> Tensor:
         self._scenario.reset()
         episode_reward=torch.zeros(self._worker_num)
-        done_flag_indicator = torch.zeros(self._worker_num, dtype=bool)
+        start_flag_indicator = torch.zeros(self._worker_num, dtype=bool)
+        done_flag_indicator = torch.ones(self._worker_num, dtype=bool)
         if self._scenario.on_gpu:
             episode_reward = episode_reward.cuda()
             done_flag_indicator = done_flag_indicator.cuda()
         while(True):
             action = DiscreteActionSelect.eps_greedy(net=self._network, scenario=self._scenario, eps=0)
-            new_elem = self._scenario.step(action).elem
+            new_batch_or_data = self._scenario.step(action)
             if self._is_test_render:
                 self._scenario.render()
             if isinstance(self._scenario.action_space, ActionSpace): # if it is the single case, check done flag, in multiple case, auto reset
-                if new_elem.done_flag:
+                if new_batch_or_data.done_flag:
                     self._scenario.reset()
-            episode_reward[~done_flag_indicator] += new_elem.reward[~done_flag_indicator]
-            done_flag_indicator = done_flag_indicator | new_elem.done_flag
-            if all(done_flag_indicator):
+            episode_reward[~done_flag_indicator] += new_batch_or_data.reward[~done_flag_indicator]
+            for i in range(self._worker_num):
+                if new_batch_or_data.done_flag[i] == True:
+                    if start_flag_indicator[i] == False:
+                        start_flag_indicator[i] = True
+                        done_flag_indicator[i] = False
+                        logger.debug("Worker-(%d) starts recording rewards!"%(i))
+                    else:
+                        done_flag_indicator[i] = True
+                        logger.debug("Worker-(%d) has done!"%(i))
+            if all(done_flag_indicator) and all(start_flag_indicator):
+                logger.info('\n[* *]' +  
+                            '\n[* * *] Total. Reward:%s' % str(episode_reward) +
+                            '\n[* * *] Current Test Average Episode Reward:%.5f' % torch.mean(episode_reward))
                 break
-        logger.info('\n[* *]' +  
-                    '\n[* * *] Total. Reward:%s' % str(episode_reward) +
-                    '\n[* * *] Current Test Average Episode Reward:%.5f' % torch.mean(episode_reward))
         return torch.mean(episode_reward)
         
     def solve(self):
+        self._iter_start_time = tm.time()
         for _ in range(self._iter_num):
             logger.info("[+] Start Training....")
-            self._iter_start_time = tm.time()
             self.train()
             total_test_reward = 0
             for i in range(self._test_num):
@@ -196,6 +201,7 @@ class DiscreteDQN(Algorithm):
                 avg_episode_reward = self.test()
                 total_test_reward += avg_episode_reward
             logger.info("[*] Average Episode Reward for All Test:%.5f"%(total_test_reward/self._test_num))
+
         # total_start_time = tm.time()
         # for epi in range(self._one_iter_max_frame):
         #     episode_reward = 0.

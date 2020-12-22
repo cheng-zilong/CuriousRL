@@ -1,5 +1,8 @@
+
 from __future__ import annotations
+from os import terminal_size
 import torch
+from torch import Tensor
 from collections import deque
 from gym import spaces
 import numpy as np
@@ -11,51 +14,51 @@ from typing import Tuple
 from CuriousRL.data import Data
 from CuriousRL.utils.Logger import logger
 from CuriousRL.scenario import ScenarioWrapper, Scenario
+from CuriousRL.scenario.openai_gym.openai_gym import OpenAIGym
 
 class AtariScenarioWrapper(ScenarioWrapper):
-    def __init__(self, scenario: Scenario, stack_num=4, is_clip_reward=True):
+    def __init__(self, scenario: OpenAIGym, stack_num=4, is_clip_reward=True):
         super().__init__(scenario=scenario)
-        self._scenario = scenario
-        self._stack_num = stack_num
-        self._is_clip_reward = is_clip_reward
-        self._frames = deque([], maxlen=stack_num)
+        self.__scenario = scenario
+        self.__stack_num = stack_num
+        self.__is_clip_reward = is_clip_reward
+        self.__frames = deque([], maxlen=stack_num)
+        self.__curr_state = self.reset()
         logger.info(name = self.name,
                     stack_num=stack_num,
                     is_clip_reward=is_clip_reward)
         
-    def reset(self) -> Scenario:
-        self._scenario.reset()
-        state = torch.transpose(self._scenario.elem.next_state, 0, 2)
-        for _ in range(self._stack_num):
-            self._frames.append(state)
-        new_state = torch.cat(tuple(self._frames), dim=0)
-        self.__data = Data(next_state=new_state, on_gpu=self.on_gpu)
-        return self
+    def reset(self) -> Tensor:
+        curr_state = self.__scenario.reset()
+        curr_state = torch.transpose(curr_state, 0, 2)
+        for _ in range(self.__stack_num):
+            self.__frames.append(curr_state)
+        new_state = torch.cat(tuple(self.__frames), dim=0)
+        self.__curr_state = new_state
+        return self.__curr_state
 
-    def step(self, action) -> Scenario:
-        self._scenario.step(action)
-        new_reward = torch.sign(
-            self._scenario.elem.reward) if self._is_clip_reward else self._scenario.elem.reward  # clip reward
-        self._frames.append(torch.transpose(
-            self._scenario.elem.next_state, 0, 2))
-        new_state = torch.cat(tuple(self._frames), dim=0)
-        self.__data = Data(state=self.__data.next_state,
-                           action=self._scenario.elem.action,
+    def step(self, action) -> Data:
+        data = self.__scenario.step(action)
+        new_reward = torch.sign(data.reward) if self.__is_clip_reward else data.reward  # clip reward
+        self.__frames.append(torch.transpose(data.next_state, 0, 2))
+        new_state = torch.cat(tuple(self.__frames), dim=0)
+        new_data = Data(state=self.__curr_state,
+                           action=action,
                            next_state=new_state,
                            reward=new_reward,
-                           done_flag=self._scenario.elem.done_flag, 
+                           done_flag=data.done_flag, 
                            on_gpu=self.on_gpu)
-        return self
+        if new_data.done_flag == True:
+            self.__curr_state = self.reset()
+        else:
+            self.__curr_state = new_state
+        return new_data
 
     @property
-    def elem(self) -> Data:
-        return self.__data
+    def curr_state(self) -> Tensor:
+        return self.__curr_state
 
-    @property
-    def state_shape(self) -> Tuple:
-        old_shape = self._scenario.state_shape
-        new_shape = (self._stack_num, old_shape[1], old_shape[0])
-        return new_shape
+
 
 class NoopResetEnv(gym.Wrapper):
     def __init__(self, env:gym.Env, noop_max:int=30):
