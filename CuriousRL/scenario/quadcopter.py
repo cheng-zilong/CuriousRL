@@ -79,7 +79,7 @@ class QuadCopter(DynamicModelBase):
             box_constr = np.asarray([
                 [-np.inf, np.inf], [-np.inf, np.inf], [-np.inf, np.inf], 
                 [-np.inf, np.inf], [-np.inf, np.inf], [-np.inf, np.inf],
-                [-np.inf, np.inf], [-np.inf, np.inf], [-np.inf, np.inf],
+                [-np.pi/2, np.pi/2], [-np.pi/2, np.pi/2], [-np.pi, np.pi],
                 [-np.inf, np.inf], [-np.inf, np.inf], [-np.inf, np.inf],
                 [-2, 2], [-2, 2], [-2, 2], [-2, 2]]) 
             other_constr =  [-((x_u_var[0] - 0.3)**2 + (x_u_var[1] - 0.3)**2 + (x_u_var[2] - 0.3)**2 - 0.01), 
