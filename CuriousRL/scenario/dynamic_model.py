@@ -45,7 +45,8 @@ class DynamicModelBase():
                 self._ax.axis('equal')
             self._ax.set_xlim(*xlim)
             self._ax.set_ylim(*ylim)
-            self._ax.set_zlim(*zlim)
+            if is_3d:
+                self._ax.set_zlim(*zlim)    
             self._ax.grid(True)
         return self._fig, self._ax
 

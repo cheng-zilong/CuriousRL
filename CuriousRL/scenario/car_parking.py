@@ -5,7 +5,7 @@ from CuriousRL.utils.Logger import logger
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import matplotlib as mpl
-
+import matplotlib.transforms as tr
 
 class CarParking(DynamicModelBase):
     """In this example, the vehicle with 4 states and 2 actions, park at (1, -1) heading to the top. 
@@ -36,15 +36,18 @@ class CarParking(DynamicModelBase):
             x_u_var[1] + b_function*sp.sin(x_u_var[2]),
             x_u_var[2] + sp.asin(h_d_constanT*x_u_var[3]*sp.sin(x_u_var[4])),
             x_u_var[3]+h_constant*x_u_var[5]])
-        init_state = np.asarray([6, -1, np.pi/2, 0],
+        init_state = np.asarray([4, -1, np.pi/2, 0],
                                 dtype=np.float64).reshape(-1, 1)
         init_action = np.zeros((T, 2, 1))
         if is_with_constraints:
-            box_constr = np.asarray([[-1, np.inf], [-np.inf, np.inf],
+            box_constr = np.asarray([[-4, np.inf], [-np.inf, np.inf],
                                  [-np.inf, np.inf], [-np.inf, np.inf], [-0.6, 0.6], [-3, 3]])
+            other_constr =  [-((x_u_var[0] + 1)**2/(3**2) + (x_u_var[1] - 4)**2/(2**2) - 1), 
+                             -((x_u_var[0] + 1)**2/(3**2) + (x_u_var[1] + 4)**2/(2**2) - 1)]
         else:
             box_constr = np.asarray([[-np.inf, np.inf], [-np.inf, np.inf], [-np.inf, np.inf],
                                  [-np.inf, np.inf], [-np.inf, np.inf], [-np.inf, np.inf]])
+            other_constr = []
         ##### Objective Function ########
         switch_var = sp.symbols("s:2")
         add_param_obj = np.zeros((T, 2), dtype=np.float64)
@@ -58,8 +61,8 @@ class CarParking(DynamicModelBase):
             return sp.sqrt((x**2)+(p**2)) - p
 
         runing_obj = Huber_fun(
-            x_u_var[0], 0.01) + Huber_fun(x_u_var[1], 0.01) + Huber_fun(x_u_var[2], 0.01)
-        terminal_obj = 1000*Huber_fun(x_u_var[0], 0.01) + 1000*Huber_fun(
+            x_u_var[0]+5, 0.01) + Huber_fun(x_u_var[1], 0.01) + Huber_fun(x_u_var[2], 0.01)
+        terminal_obj = 1000*Huber_fun(x_u_var[0]+5, 0.01) + 1000*Huber_fun(
             x_u_var[1], 0.01) + 1000*Huber_fun(x_u_var[2], 0.01) + 100*Huber_fun(x_u_var[3], 0.01)
         action_obj = x_u_var[4]**2 + x_u_var[5]**2
         obj_fun = switch_var[0] * runing_obj + \
@@ -67,6 +70,7 @@ class CarParking(DynamicModelBase):
         super().__init__(dynamic_function=dynamic_function,
                          x_u_var=x_u_var,
                          box_constr=box_constr,
+                         other_constr=other_constr,
                          init_state=init_state,
                          init_action=init_action,
                          obj_fun=obj_fun,
@@ -84,25 +88,22 @@ class CarParking(DynamicModelBase):
             then the trajectroy in the last iteration in the given result file will be played. defaults to -1.
         :type no_iter: int, optional    
         """
-        fig, ax = super().create_plot(figsize=(5, 5), xlim=(-5, 10), ylim=(-7.5, 7.5))
+        fig, ax = super().create_plot(figsize=(8, 8), xlim=(-8, 8), ylim=(-8, 8))
+        plt.grid(False)
         trajectory = np.asarray(logger.read_from_json(
             logger_folder, no_iter)["trajectory"])
-        car = patches.FancyBboxPatch((0, 0), 3, 2, "round,pad=0.2")
-        car.set_color('C0')
-        ax.add_patch(car)
+        
+        plt.imshow(plt.imread("CuriousRL/scenario/parking_lot.png"), extent=[-8, 8, -8, 8])
         plt.plot(trajectory[:, 0], trajectory[:, 1], 'C1')
-        plt.plot([-1, -1], [10, -10], 'C2')
-        plt.plot([-1, 4], [2, 2], 'C2')
-        plt.plot([-1, 4], [-2, -2], 'C2')
+        car = plt.imshow(plt.imread("CuriousRL/scenario/vehicle.png"), extent=[0, 5, -1.5, 1.5], origin="lower")
         self._is_interrupted = False
         for i in range(self.T):
             angle = trajectory[i, 2, 0]
             t_start = ax.transData
-            x = trajectory[i, 0, 0] + 1*np.sin(angle)
-            y = trajectory[i, 1, 0] - 1*np.cos(angle)
+            x = trajectory[i, 0, 0]
+            y = trajectory[i, 1, 0]
+            car.set_extent([x, x+5, y-1.5, y+1.5]) 
             rotate_center = t_start.transform([x, y])
-            car.set_x(x)
-            car.set_y(y)
             t = mpl.transforms.Affine2D().rotate_around(
                 rotate_center[0], rotate_center[1], angle)
             t_end = t_start + t

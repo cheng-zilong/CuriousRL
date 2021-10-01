@@ -14,18 +14,29 @@ import matplotlib.pyplot as plt
 #     NNiLQR(gaussian_noise_sigma=1, training_stopping_criterion=1e-3).init(scenario).solve()
 #     scenario.play("CartPoleSwingUp1 a")
 
+# if __name__ == "__main__":
+#     for i in range(1,50):
+#         try:
+#             logger.set_folder_name("QuadCopter_" + str(i), remove_existing_folder=False).set_is_use_logger(True).set_is_save_json(True)
+#             # scenario = VehicleTracking()
+#             scenario = QuadCopter() 
+#             # basic_ilqr.BasiciLQR().init(scenario).solve() 
+#             # log_barrier_ilqr.LogBarrieriLQR().init(scenario).solve() 
+#             # nn_ilqr.NNiLQR(gaussian_noise_sigma=[[0.01], [0.1]], iLQR_max_iter=100).init(scenario).solve() 
+#             nn_cilqr.NNiLQR(gaussian_noise_sigma=[[0.1], [0.1], [0.1], [0.1]], iLQR_max_iter=100).init(scenario).solve() 
+#         except Exception as e:
+#             pass
+#         continue
+#     scenario.play("QuadCopter")
+
+
 if __name__ == "__main__":
-    for i in range(9,50):
-        try:
-            logger.set_folder_name("QuadCopter_" + str(i), remove_existing_folder=False).set_is_use_logger(True).set_is_save_json(True)
-            # scenario = VehicleTracking()
-            scenario = QuadCopter() 
-            # basic_ilqr.BasiciLQR().init(scenario).solve() 
-            # log_barrier_ilqr.LogBarrieriLQR().init(scenario).solve() 
-            # nn_ilqr.NNiLQR(gaussian_noise_sigma=[[0.01], [0.1]], iLQR_max_iter=100).init(scenario).solve() 
-            nn_cilqr.NNiLQR(gaussian_noise_sigma=[[0.1], [0.1], [0.1], [0.1]], iLQR_max_iter=100).init(scenario).solve() 
-        except Exception as e:
-            pass
-        continue
-    scenario.play("QuadCopter")
+    logger.set_folder_name("CarParking_", remove_existing_folder=False).set_is_use_logger(True).set_is_save_json(True)
+    # scenario = VehicleTracking()
+    scenario = CarParking() 
+    # basic_ilqr.BasiciLQR().init(scenario).solve() 
+    log_barrier_ilqr.LogBarrieriLQR().init(scenario).solve() 
+    # nn_ilqr.NNiLQR(gaussian_noise_sigma=[[0.01], [0.1]], iLQR_max_iter=100).init(scenario).solve() 
+    # nn_cilqr.NNiLQR(gaussian_noise_sigma=[[0.1], [0.1], [0.1], [0.1]], iLQR_max_iter=100).init(scenario).solve() 
+    scenario.play("CarParking_")
 # %%
