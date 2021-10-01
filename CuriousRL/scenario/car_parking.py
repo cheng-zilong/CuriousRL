@@ -1,13 +1,13 @@
 import numpy as np
 import sympy as sp
-from .dynamic_model import DynamicModelWrapper
+from .dynamic_model import DynamicModelBase
 from CuriousRL.utils.Logger import logger
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import matplotlib as mpl
 
 
-class CarParking(DynamicModelWrapper):
+class CarParking(DynamicModelBase):
     """In this example, the vehicle with 4 states and 2 actions, park at (1, -1) heading to the top. 
     We hope that the vechile can park at (0, 0) and head to the right.
     The state are listed as follows: ``x0(state): position_x``, ``x1(state): position_y``, ``x2(state): heading anglue``, 
@@ -20,7 +20,7 @@ class CarParking(DynamicModelWrapper):
     :type T: int, optional
     """
 
-    def __init__(self, is_with_constraints=True, T=500):
+    def __init__(self, is_with_constraints=True, T=150):
         ##### Dynamic Function ########
         n, m = 4, 2  # number of state = 4, number of action = 1, prediction horizon = 150
         h_constant = 0.1  # sampling time
@@ -36,14 +36,14 @@ class CarParking(DynamicModelWrapper):
             x_u_var[1] + b_function*sp.sin(x_u_var[2]),
             x_u_var[2] + sp.asin(h_d_constanT*x_u_var[3]*sp.sin(x_u_var[4])),
             x_u_var[3]+h_constant*x_u_var[5]])
-        init_state = np.asarray([1, -1, np.pi/2, 0],
+        init_state = np.asarray([6, -1, np.pi/2, 0],
                                 dtype=np.float64).reshape(-1, 1)
         init_action = np.zeros((T, 2, 1))
         if is_with_constraints:
-            constr = np.asarray([[-1, np.inf], [-np.inf, np.inf],
+            box_constr = np.asarray([[-1, np.inf], [-np.inf, np.inf],
                                  [-np.inf, np.inf], [-np.inf, np.inf], [-0.6, 0.6], [-3, 3]])
         else:
-            constr = np.asarray([[-np.inf, np.inf], [-np.inf, np.inf], [-np.inf, np.inf],
+            box_constr = np.asarray([[-np.inf, np.inf], [-np.inf, np.inf], [-np.inf, np.inf],
                                  [-np.inf, np.inf], [-np.inf, np.inf], [-np.inf, np.inf]])
         ##### Objective Function ########
         switch_var = sp.symbols("s:2")
@@ -56,6 +56,7 @@ class CarParking(DynamicModelWrapper):
 
         def Huber_fun(x, p):
             return sp.sqrt((x**2)+(p**2)) - p
+
         runing_obj = Huber_fun(
             x_u_var[0], 0.01) + Huber_fun(x_u_var[1], 0.01) + Huber_fun(x_u_var[2], 0.01)
         terminal_obj = 1000*Huber_fun(x_u_var[0], 0.01) + 1000*Huber_fun(
@@ -65,7 +66,7 @@ class CarParking(DynamicModelWrapper):
             switch_var[1]*terminal_obj + action_obj
         super().__init__(dynamic_function=dynamic_function,
                          x_u_var=x_u_var,
-                         constr=constr,
+                         box_constr=box_constr,
                          init_state=init_state,
                          init_action=init_action,
                          obj_fun=obj_fun,
@@ -91,8 +92,8 @@ class CarParking(DynamicModelWrapper):
         ax.add_patch(car)
         plt.plot(trajectory[:, 0], trajectory[:, 1], 'C1')
         plt.plot([-1, -1], [10, -10], 'C2')
-        plt.plot([-1, 5], [2, 2], 'C2')
-        plt.plot([-1, 5], [-2, -2], 'C2')
+        plt.plot([-1, 4], [2, 2], 'C2')
+        plt.plot([-1, 4], [-2, -2], 'C2')
         self._is_interrupted = False
         for i in range(self.T):
             angle = trajectory[i, 2, 0]

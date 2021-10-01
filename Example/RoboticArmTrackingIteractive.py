@@ -1,6 +1,7 @@
 import matplotlib.patches as patches
-from CuriousRL.algorithm.ilqr_solver import BasiciLQR, LogBarrieriLQR
-from CuriousRL.scenario.dynamic_model import RoboticArmTracking
+from CuriousRL.algorithm.ilqr_solver.basic_ilqr import BasiciLQR
+from CuriousRL.algorithm.ilqr_solver.log_barrier_ilqr import LogBarrieriLQR
+from CuriousRL.scenario.robotic_arm_tracking import RoboticArmTracking
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -16,7 +17,6 @@ class RoboticArmTrackingDemo(object):
         plt.show()
 
     def onclick(self, event):  
-        
         self.ax.patches = []
         circle = patches.Circle((event.xdata, event.ydata), 0.1, alpha = 0.5)
         circle.set_color('C4')

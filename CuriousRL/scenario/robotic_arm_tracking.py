@@ -1,13 +1,12 @@
 import numpy as np
 import sympy as sp
-from .dynamic_model import DynamicModelWrapper
+from .dynamic_model import DynamicModelBase
 from CuriousRL.utils.Logger import logger
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import matplotlib as mpl
-from scipy.linalg import block_diag 
 
-class SneakRobotTracking(DynamicModelWrapper):
+class RoboticArmTracking(DynamicModelBase):
     """ In this example, the vehicle packing at 0, 0, heading to the top\\
         We hope the vechile can pack at 0, 0, and head to the right\\
         x0: position_x, x1: position_y, x2: heading anglue, x3: velocity, x4: steering angle, x5: acceleration\\
@@ -15,44 +14,37 @@ class SneakRobotTracking(DynamicModelWrapper):
     """
     def __init__(self, is_with_constraints = True, T = 100, x = 2, y = 2):
         ##### Dynamic Function ########
-        # x0-x3: theta
-        # x4-x7: dot theta
-        # x8-x10: phi
-        # x11-x14: position_x
-        # x15-x18: position_y
-        # x19, x20, x21, x22: p_x, p_y, dot p_x, dot p_y
-        # x23, x24, x25, tau0 .... tau2
-
-        x_u_var = sp.symbols('x_u:26')
-        J = 1.6e-3
-        m = 1
-        l = 0.07
-        A = np.asarray([[1, 1, 0, 0],
-                        [0, 1, 1, 0],
-                        [0, 0, 1, 1]], dtype=np.float64)
-        D = np.asarray([[1, -1, 0, 0],
-                        [0, 1, -1, 0],
-                        [0, 0, 1, -1]], dtype=np.float64)
-        e = np.ones((4,1))
-        E = block_diag(e,e)
-        b = np.zeros((3,1))
-        b[-1] = 1
-        N = A.T@np.linalg.inv(D@D.T)@D
-        V = A.T@np.linalg.inv(D@D.T)@A
-        mu_t = 1
-        mu_n = 3
-        S_theta = np.diag([sp.sin(n) for n in x_u_var[0:4]])
-        C_theta = np.diag([sp.cos(n) for n in x_u_var[0:4]])
-        H = np.vstack([N.T@S_theta, -N.T@C_theta])
-        Q_theta = -np.vstack([   np.hstack([mu_t*C_theta@C_theta + mu_n*S_theta@S_theta, (mu_t-mu_n)*S_theta@C_theta]),
-                                np.hstack([(mu_t-mu_n)*S_theta@C_theta, mu_t*C_theta@C_theta + mu_n*S_theta@S_theta])])
-        M = sp.Matrix(J*np.eye(4) + m*(l**2)*S_theta@V@S_theta + m*(l**2)*C_theta@V@C_theta)
-        M_inv = sp.Inverse(M)
-        W = m*(l**2)*C_theta@V@S_theta - m*(l**2)*S_theta@V@C_theta
-        f_R = l*Q_theta@H@sp.Matrix(x_u_var[6:12])+Q_theta@E@sp.Matrix([x_u_var[31], x_u_var[32]])
-        M_ddot_theta = W@sp.Matrix(x_u_var[6:12]) + l*H.T@f_R + D.T@sp.Matrix(x_u_var[33:38])
-
-
+        # x0: theta1 
+        # x1: theta1 dot 
+        # x2: theta2
+        # x3: theta2 dot
+        # x4: teminal x
+        # x5: teminal y
+        # x6: tau1
+        # x7: tau2
+        
+        n, m = 6, 2 # number of state = 6, number of action = 2, prediction horizon = 500
+        x_u_var = sp.symbols('x_u:8')
+        m1 = 1
+        m2 = 2
+        self.l1 = 1
+        self.l2 = 2
+        g = 9.8
+        h = 0.01 # sampling time
+        H = sp.Matrix([
+            [((1/3)*m1 + m2)*(self.l1**2),          (1/2)*m2*self.l1*self.l2*sp.cos(x_u_var[0] - x_u_var[2])],
+            [(1/2)*m2*self.l1*self.l2*sp.cos(x_u_var[0] - x_u_var[2]),               (1/3)*m2*(self.l2**2)   ]
+        ])
+        H_inv = H.inv()
+        Q = np.asarray([
+            [-0.5*m2*self.l1*self.l2*(x_u_var[3]**2)*sp.sin(x_u_var[0] - x_u_var[2]) + 0.5*m1*g*self.l1*sp.sin(x_u_var[0])+m2*g*self.l1*sp.sin(x_u_var[0])],
+            [0.5*m2*self.l1*self.l2*(x_u_var[1]**2)*sp.sin(x_u_var[0] - x_u_var[2]) + 0.5*m2*g*self.l2*sp.sin(x_u_var[2])]
+            ])
+        tau =  np.asarray([
+            [x_u_var[6]],
+            [x_u_var[7]]
+            ])
+        temp = H_inv@Q + H_inv@tau
         theta1_ddot = temp[0,0]
         theta2_ddot = temp[1,0]
         dynamic_function = sp.Array([  
@@ -76,7 +68,7 @@ class SneakRobotTracking(DynamicModelWrapper):
         add_param = np.hstack([x*np.ones((T, 1)), y*np.ones((T, 1))])
         super().__init__(   dynamic_function=dynamic_function, 
                             x_u_var = x_u_var, 
-                            constr = constr, 
+                            box_constr = constr, 
                             init_state = init_state, 
                             init_action = init_action, 
                             obj_fun = obj_fun,

@@ -22,7 +22,7 @@ class iLQRDynamicModel(object):
     :param add_param: Give the values to the additioanl variables, defaults to None
     :type add_param: array[T, q], optional
     """
-    def __init__(self, dynamic_function, x_u_var, constr, init_state, init_action, add_param_var = None, add_param = None):
+    def __init__(self, dynamic_function, x_u_var, box_constr, init_state, init_action, add_param_var = None, add_param = None):
         self._init_state = init_state
         self._init_action = init_action
         self._n = int(init_state.shape[0])
@@ -34,7 +34,7 @@ class iLQRDynamicModel(object):
         grad_dynamic_function = sp.transpose(sp.derive_by_array(dynamic_function, x_u_var))
         self._grad_dynamic_function_lamdify = njit(sp.lambdify([x_u_var, add_param_var], grad_dynamic_function, "math"))
         self._add_param = add_param
-        self._constr = constr
+        self._box_constr = box_constr
 
     def eval_traj(self, init_state = None, action_traj = None):
         """Evaluate the system trajectory by given initial states and action vector. If init_state = None, action_traj = None,
@@ -51,7 +51,7 @@ class iLQRDynamicModel(object):
             init_state = self._init_state
         if action_traj is None:
             action_traj = self._init_action
-        return self._eval_traj_static(self._dynamic_function_lamdify, init_state, action_traj, self._add_param, self._m, self._n, self._constr)
+        return self._eval_traj_static(self._dynamic_function_lamdify, init_state, action_traj, self._add_param, self._m, self._n, self._box_constr)
 
     def update_traj(self, old_traj, K_matrix_all, k_vector_all, alpha): 
         """Generate the new system trajectory by given old trajectory, feedback matrix K, feedforward vector k,
@@ -68,7 +68,7 @@ class iLQRDynamicModel(object):
         :return: Updated trajectory
         :rtype: array[T, m+n, 1]
         """
-        return self._update_traj_static(self._dynamic_function_lamdify, self._m, self._n, old_traj, K_matrix_all, k_vector_all, alpha, self._add_param, self._constr)
+        return self._update_traj_static(self._dynamic_function_lamdify, self._m, self._n, old_traj, K_matrix_all, k_vector_all, alpha, self._add_param, self._box_constr)
 
     def eval_grad_dynamic_model(self, trajectory):
         """Evaluate the matrix of the gradient of the dynamic_model given a specific trajectory

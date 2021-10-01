@@ -1,13 +1,13 @@
 #%%
 import numpy as np
 import sympy as sp
-from .dynamic_model import DynamicModelWrapper
+from .dynamic_model import DynamicModelBase
 from CuriousRL.utils.Logger import logger
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import matplotlib as mpl
 
-class CartPoleSwingUp1(DynamicModelWrapper):
+class CartPoleSwingUp1(DynamicModelBase):
     """ In this example, the cartpole system is static at 0, 0, heading to the postive direction of the y axis\\
         We hope the vechile can tracking the reference y=-10 with the velocity 8, and head to the right\\
         x0: angle, x1: angular velocity, x2: position, x3: velocity, x4: force\\
@@ -33,9 +33,9 @@ class CartPoleSwingUp1(DynamicModelWrapper):
         init_state = np.asarray([np.pi, 0, 0, 0],dtype=np.float64).reshape(-1,1)
         init_action = np.zeros((T, m, 1))
         if is_with_constraints: 
-            constr = np.asarray([[-np.inf, np.inf], [-np.inf, np.inf], [-1, 1],  [-np.inf, np.inf], [-10, 10]]) 
+            box_constr = np.asarray([[-np.inf, np.inf], [-np.inf, np.inf], [-1, 1],  [-np.inf, np.inf], [-10, 10]]) 
         else:
-            constr = np.asarray([[-np.inf, np.inf], [-np.inf, np.inf], [-np.inf, np.inf], [-np.inf, np.inf], [-np.inf, np.inf]]) 
+            box_constr = np.asarray([[-np.inf, np.inf], [-np.inf, np.inf], [-np.inf, np.inf], [-np.inf, np.inf], [-np.inf, np.inf]]) 
         ##### Objective Function ########
         C_matrix_diag = sp.symbols("c:5")
         add_param_obj = np.zeros((T, 5), dtype = np.float64)
@@ -47,7 +47,7 @@ class CartPoleSwingUp1(DynamicModelWrapper):
         obj_fun = x_u_var@np.diag(np.asarray(C_matrix_diag))@x_u_var
         super().__init__(   dynamic_function=dynamic_function, 
                             x_u_var = x_u_var, 
-                            constr = constr, 
+                            box_constr = box_constr, 
                             init_state = init_state, 
                             init_action = init_action, 
                             obj_fun = obj_fun,

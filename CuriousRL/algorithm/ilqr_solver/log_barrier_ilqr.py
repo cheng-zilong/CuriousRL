@@ -8,7 +8,7 @@ from .ilqr_obj_fun import iLQRObjectiveFunction
 from .ilqr_dynamic_model import iLQRDynamicModel
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    from CuriousRL.scenario.dynamic_model.dynamic_model import DynamicModelWrapper
+    from CuriousRL.scenario.dynamic_model import DynamicModelBase
 
 class LogBarrieriLQR(iLQRWrapper):
     def __init__(self,
@@ -50,7 +50,7 @@ class LogBarrieriLQR(iLQRWrapper):
         self._max_iter = max_iter
         self._is_check_stop = is_check_stop
 
-    def init(self, scenario: DynamicModelWrapper) -> LogBarrieriLQR:
+    def init(self, scenario: DynamicModelBase) -> LogBarrieriLQR:
         """ Initialize the iLQR solver class
 
             Parameter
@@ -66,10 +66,9 @@ class LogBarrieriLQR(iLQRWrapper):
         if not scenario.with_model() or scenario.is_action_discrete() or scenario.is_output_image():
             raise Exception("Scenario \"" + scenario.name + "\" cannot learn with LogBarrieriLQR")
         # Parameters for the model
-        constr = scenario.constr
         self._dynamic_model = iLQRDynamicModel(dynamic_function=scenario.dynamic_function,
                                                x_u_var=scenario.x_u_var,
-                                               constr=constr,
+                                               box_constr=scenario.box_constr,
                                                init_state=scenario.init_state,
                                                init_action=scenario.init_action,
                                                add_param_var=None,
@@ -88,11 +87,13 @@ class LogBarrieriLQR(iLQRWrapper):
         # construct the barrier objective function
         barrier_obj_fun = scenario.obj_fun
         # add the inequality constraints to the objective function
-        for i, c in enumerate(constr):
+        for i, c in enumerate(scenario.box_constr):
             if not np.isinf(c[0]):
                 barrier_obj_fun += (-1/t_var)*sp.log(-(c[0] - x_u_var[i]))
             if not np.isinf(c[1]):
                 barrier_obj_fun += (-1/t_var)*sp.log(-(x_u_var[i] - c[1]))
+        for other_constr in scenario._other_constr:
+            barrier_obj_fun += (-1/t_var)*sp.log(-other_constr)
         if scenario.add_param is None:
             add_param = self._t[0] * \
                 np.ones((self.dynamic_model._T, 1), dtype=np.float64)
@@ -109,20 +110,21 @@ class LogBarrieriLQR(iLQRWrapper):
         """ Solve the problem with classical iLQR
         """
         # Initialize the trajectory, F_matrix, objective_function_value_last, C_matrix and c_vector
-        self._trajectory = self._dynamic_model.eval_traj()  # init feasible trajectory
-        C_matrix = self._obj_fun.eval_hessian_obj_fun(self._trajectory)
-        c_vector = self._obj_fun.eval_grad_obj_fun(self._trajectory)
-        F_matrix = self._dynamic_model.eval_grad_dynamic_model(
+        self._trajectory = self.dynamic_model.eval_traj()  # init feasible trajectory
+        C_matrix = self.obj_fun.eval_hessian_obj_fun(self._trajectory)
+        c_vector = self.obj_fun.eval_grad_obj_fun(self._trajectory)
+        F_matrix = self.dynamic_model.eval_grad_dynamic_model(
             self._trajectory)
         # Start iteration
         logger.info("[+ +] Initial Obj.Val.: %.5e" %
                     (self._real_obj_fun.eval_obj_fun(self._trajectory)))
         total_iter_no = -1
-        for j in self._t:
-            if j != self._t[0]:  # update t parameter
+        for idx_j, j in enumerate(self._t):
+            if idx_j != 0:  # update t parameter
                 add_param = self.get_obj_add_param()
                 add_param[:, -1] = j*np.ones((self.dynamic_model._T))
                 self.set_obj_add_param(add_param)
+            self.set_obj_fun_value(self._obj_fun.eval_obj_fun(self._trajectory))
             for i in range(self._max_iter):
                 total_iter_no += 1
                 if j == self._t[0] and i == 1:  # skip the compiling time
@@ -140,7 +142,7 @@ class LogBarrieriLQR(iLQRWrapper):
                     total_iter_no,     i,  backward_time-iter_start_time, forward_time-backward_time, obj))
                 logger.save_to_json(trajectory=self._trajectory.tolist())
                 if isStop and self._is_check_stop:
-                    self.set_obj_fun_value(np.inf)
+                    
                     logger.info(
                         "[+ +] Complete One Inner Loop! The log barrier parameter t is %.5f" % (j) + " in this iteration!")
                     break

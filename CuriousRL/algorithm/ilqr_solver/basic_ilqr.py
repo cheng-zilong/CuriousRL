@@ -6,7 +6,7 @@ from .ilqr_obj_fun import iLQRObjectiveFunction
 from .ilqr_wrapper import iLQRWrapper
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    from CuriousRL.scenario.dynamic_model.dynamic_model import DynamicModelWrapper
+    from CuriousRL.scenario.dynamic_model import DynamicModelBase
 
 
 class BasiciLQR(iLQRWrapper):
@@ -47,13 +47,13 @@ class BasiciLQR(iLQRWrapper):
         self._max_iter = max_iter
         self._is_check_stop = is_check_stop
 
-    def init(self, scenario: DynamicModelWrapper) -> BasiciLQR:
+    def init(self, scenario: DynamicModelBase) -> BasiciLQR:
         if not scenario.with_model() or scenario.is_action_discrete() or scenario.is_output_image():
             raise Exception("Scenario \"" + scenario.name + "\" cannot learn with LogBarrieriLQR")
         # Initialize the dynamic_model and objective function
         self._dynamic_model = iLQRDynamicModel(dynamic_function=scenario.dynamic_function,
                                               x_u_var=scenario.x_u_var,
-                                              constr=scenario.constr,
+                                              box_constr=scenario._box_constr,
                                               init_state=scenario.init_state,
                                               init_action=scenario.init_action,
                                               add_param_var=None,
@@ -69,13 +69,13 @@ class BasiciLQR(iLQRWrapper):
         """ Solve the problem with classical iLQR
         """
         # Initialize the trajectory, F_matrix, objective_function_value_last, C_matrix and c_vector
-        self._trajectory = self._dynamic_model.eval_traj()  # init feasible trajectory
-        C_matrix = self._obj_fun.eval_hessian_obj_fun(self._trajectory)
-        c_vector = self._obj_fun.eval_grad_obj_fun(self._trajectory)
-        F_matrix = self._dynamic_model.eval_grad_dynamic_model(
+        self._trajectory = self.dynamic_model.eval_traj()  # init feasible trajectory
+        C_matrix = self.obj_fun.eval_hessian_obj_fun(self._trajectory)
+        c_vector = self.obj_fun.eval_grad_obj_fun(self._trajectory)
+        F_matrix = self.dynamic_model.eval_grad_dynamic_model(
             self._trajectory)
         logger.info("[+ +] Initial Obj.Val.: %.5e" %
-                    (self._obj_fun.eval_obj_fun(self._trajectory)))
+                    (self.obj_fun.eval_obj_fun(self._trajectory)))
         # Start iteration
         start_time = tm.time()
         for i in range(self._max_iter):

@@ -1,5 +1,6 @@
 from __future__ import annotations
 import numpy as np
+import sympy as sp
 import time as tm
 from scipy import io
 import os
@@ -13,10 +14,11 @@ from scipy.ndimage import gaussian_filter1d
 from .ilqr_dynamic_model import iLQRDynamicModel
 from .ilqr_obj_fun import iLQRObjectiveFunction
 from typing import TYPE_CHECKING
+import typing
 if TYPE_CHECKING:
     from CuriousRL.data import Data
     from CuriousRL.data import Dataset
-    from CuriousRL.scenario.dynamic_model.dynamic_model import DynamicModelWrapper
+    from CuriousRL.scenario.dynamic_model import DynamicModelBase
 VALI_DATASET_SIZE = 10
 
 class Residual(nn.Module):
@@ -70,11 +72,12 @@ class SmallNetwork(nn.Module):
         super().__init__()
         layer1_no = 128
         layer2_no = 64
+        layer3_no = 32
         self.layer = nn.Sequential(
-            nn.Linear(in_dim, layer1_no), nn.BatchNorm1d(layer1_no), nn.ReLU(),
-            nn.Linear(layer1_no, layer2_no), nn.BatchNorm1d(
-                layer2_no), nn.ReLU(),
-            nn.Linear(layer2_no, out_dim))
+            nn.Linear(in_dim, layer1_no), nn.BatchNorm1d(layer1_no), nn.ReLU(), 
+            nn.Linear(layer1_no, layer2_no), nn.BatchNorm1d(layer2_no), nn.ReLU(), 
+            nn.Linear(layer2_no, layer3_no), nn.BatchNorm1d(layer3_no), nn.ReLU(), 
+            nn.Linear(layer3_no, out_dim))
 
     def forward(self, x):
         x = self.layer(x)
@@ -86,12 +89,11 @@ class LargeNetwork(nn.Module):
 
     def __init__(self, in_dim, out_dim):
         super().__init__()
-        layer1_no = 800
-        layer2_no = 400
+        layer1_no = 256
+        layer2_no = 256
         self.layer = nn.Sequential(
-            nn.Linear(in_dim, layer1_no), nn.BatchNorm1d(layer1_no), nn.ReLU(),
-            nn.Linear(layer1_no, layer2_no), nn.BatchNorm1d(
-                layer2_no), nn.ReLU(),
+            nn.Linear(in_dim, layer1_no), nn.BatchNorm1d(layer1_no), nn.ReLU(), 
+            nn.Linear(layer1_no, layer2_no), nn.BatchNorm1d(layer2_no), nn.ReLU(), 
             nn.Linear(layer2_no, out_dim))
 
     def forward(self, x):
@@ -121,7 +123,7 @@ class NNiLQRDynamicModel(iLQRDynamicModel):
             (self._T, self._n, self._m+self._n)).cuda()
         self.__constant1 = torch.eye(self._n).cuda()
 
-    def _process_data(self, dataset) -> Tuple[Tensor, Tensor]:
+    def _process_data(self, dataset) -> typing.Tuple[Tensor, Tensor]:
         data = dataset.fetch_all_data()
         traj = data.state
         X = traj[[n for n in range(len(traj)) if ((n+1) % self._T != 0)]]
@@ -161,7 +163,7 @@ class NNiLQRDynamicModel(iLQRDynamicModel):
                         "\" does NOT exist. Pre-traning starts...")
             loss_fun = nn.MSELoss()
             # self.optimizer = optim.SGD(self.model.parameters(), lr=lr, momentum=0.9)
-            optimizer = optim.RAdam(
+            self.optimizer = optim.RAdam(
                 self._model.parameters(), lr=lr, weight_decay=1e-4)
             X_train, Y_train = self._process_data(dataset_train)
             X_vali, Y_vali = self._process_data(dataset_vali)
@@ -169,11 +171,11 @@ class NNiLQRDynamicModel(iLQRDynamicModel):
             for epoch in range(max_epoch):
                 #### Training ###
                 self._model.train()
-                optimizer.zero_grad()
+                self.optimizer.zero_grad()
                 Y_prediction = self._model(X_train)
                 obj_train = loss_fun(Y_prediction, Y_train)
                 obj_train.backward()
-                optimizer.step()
+                self.optimizer.step()
                 result_train_loss[epoch] = obj_train.item()
                 if obj_train.item() < stopping_criterion or epoch % 100 == 0:  # Check stopping criterion
                     ## Evaluation ###
@@ -190,7 +192,7 @@ class NNiLQRDynamicModel(iLQRDynamicModel):
                         time_pretraining = time_end_preraining - time_start_pretraining
                         logger.info(
                             "[+ +] Pretraining finished! Model file \"" + model_name + "\" is saved!")
-                        logger.info("[+ +] Pretraining time: %.8f" %
+                        logger.info("[+ +] PretrainiZng time: %.8f" %
                                     (time_pretraining))
                         torch.save(self._model.state_dict(),
                                    os.path.join(model_path, model_name))
@@ -204,22 +206,22 @@ class NNiLQRDynamicModel(iLQRDynamicModel):
             self._model.load_state_dict(torch.load(
                 os.path.join(model_path, model_name)))
             self._model.eval()
+            self.optimizer = optim.RAdam(
+                self._model.parameters(), lr=lr, weight_decay=1e-4)
 
     def retrain(self, dataset, max_epoch=10000, stopping_criterion=1e-3, lr=1e-3):
         logger.info("[+ +] Re-traning starts...")
         loss_fun = nn.MSELoss()
         # optimizer = optim.SGD(self.model.parameters(), lr=lr, momentum=0.9)
-        optimizer = optim.RAdam(self._model.parameters(),
-                                lr=lr, weight_decay=1e-4)
         X_train, Y_train = self._process_data(dataset)
         for epoch in range(max_epoch):
             #### Training ###
             self._model.train()
-            optimizer.zero_grad()
+            self.optimizer.zero_grad()
             Y_prediction = self._model(X_train)
             obj_train = loss_fun(Y_prediction, Y_train)
             obj_train.backward()
-            optimizer.step()
+            self.optimizer.step()
             if obj_train.item() < stopping_criterion or epoch % 100 == 0:  # Check stopping criterion
                 logger.info("[+ +] Epoch: %5d   Train Obj: %.5e" % (
                     epoch + 1,     obj_train.item()))
@@ -284,12 +286,13 @@ class NNiLQR(iLQRWrapper):
                  gamma=0.5,
                  line_search_method="vanilla",
                  stopping_method="vanilla",
+                 t = [0.5, 1., 2., 5., 10., 20., 50., 100.],
                  network_class=LargeNetwork,
                  trial_no=100,
                  training_stopping_criterion=1e-4,
                  iLQR_max_iter=1000,
                  decay_rate=0.98,
-                 decay_rate_max_iters=200,
+                 decay_rate_max_iters=150,
                  gaussian_filter_sigma=5,
                  gaussian_noise_sigma=1):
         super().__init__(stopping_criterion=iLQR_stopping_criterion,
@@ -313,8 +316,9 @@ class NNiLQR(iLQRWrapper):
         self._decay_rate_max_iters = decay_rate_max_iters
         self._gaussian_filter_sigma = gaussian_filter_sigma
         self._gaussian_noise_sigma = gaussian_noise_sigma
+        self._t = t
 
-    def init(self, scenario: DynamicModelWrapper) -> BasiciLQR:
+    def init(self, scenario: DynamicModelBase) -> NNiLQR:
 
         if not scenario.with_model() or scenario.is_action_discrete() or scenario.is_output_image():
             raise Exception("Scenario \"" + scenario.name +
@@ -328,10 +332,39 @@ class NNiLQR(iLQRWrapper):
                                                init_action=scenario.init_action,
                                                add_param_var=None,
                                                add_param=None)
-        self._obj_fun = iLQRObjectiveFunction(obj_fun=scenario.obj_fun,
-                                              x_u_var=scenario.x_u_var,
-                                              add_param_var=scenario.add_param_var,
-                                              add_param=scenario.add_param)
+
+        self._real_obj_fun = iLQRObjectiveFunction(obj_fun=scenario.obj_fun,
+                                                   x_u_var=scenario.x_u_var,
+                                                   add_param_var=scenario.add_param_var,
+                                                   add_param=scenario.add_param)
+        x_u_var = scenario.x_u_var
+        t_var = sp.symbols('t')  # introduce the parameter for log barrier
+        add_param_var = scenario.add_param_var
+        if add_param_var is None:
+            add_param_var = (t_var,)
+        else:
+            add_param_var = (*add_param_var, t_var)
+        # construct the barrier objective function
+        barrier_obj_fun = scenario.obj_fun
+        # add the inequality constraints to the objective function
+        for i, c in enumerate(scenario.box_constr):
+            if not np.isinf(c[0]):
+                barrier_obj_fun += (-1/t_var)*sp.log(-(c[0] - x_u_var[i]))
+            if not np.isinf(c[1]):
+                barrier_obj_fun += (-1/t_var)*sp.log(-(x_u_var[i] - c[1]))
+        for other_constr in scenario._other_constr:
+            barrier_obj_fun += (-1/t_var)*sp.log(-other_constr)
+        if scenario.add_param is None:
+            add_param = self._t[0] * \
+                np.ones((self.dynamic_model._T, 1), dtype=np.float64)
+        else:
+            add_param = np.hstack(
+                [scenario.add_param, self._t[0]*np.ones((self.dynamic_model._T, 1))])
+        self._obj_fun = iLQRObjectiveFunction(obj_fun=barrier_obj_fun,
+                                              x_u_var=x_u_var,
+                                              add_param_var=add_param_var,
+                                              add_param=add_param)
+
         network = self._network_class(scenario.n + scenario.m, scenario.n)
         action_constr = scenario.box_constr[scenario.n:]
         if np.any(np.isinf(action_constr)):
@@ -344,6 +377,7 @@ class NNiLQR(iLQRWrapper):
             traj = self._dynamic_model.eval_traj(action_traj=actions)
             new_data = Data(state=traj[:, :,  0])  # all data is saved in state
             return new_data
+
         self._dataset_train = Dataset(
             buffer_size=self._trial_no*scenario.T, state_dim=scenario.n + scenario.m, action_dim=1)
         for _ in range(self._trial_no):
@@ -360,55 +394,62 @@ class NNiLQR(iLQRWrapper):
 
     def solve(self):
         trajectory = self._dynamic_model.eval_traj()  # init feasible trajectory
-        init_obj = self._obj_fun.eval_obj_fun(trajectory)
         logger.info("[+ +] Initial Obj.Val.: %.5e" %
-                    (init_obj))
-        self.set_obj_fun_value(init_obj)
+                    (self._real_obj_fun.eval_obj_fun(trajectory)))
         new_data = []
-        result_obj_val = np.zeros(self._iLQR_max_iter)
-        result_iter_time = np.zeros(self._iLQR_max_iter)
+        result_obj_val = np.zeros(self._iLQR_max_iter * len(self._t))
+        result_iter_time = np.zeros(self._iLQR_max_iter  * len(self._t))
         re_train_stopping_criterion = self._training_stopping_criterion
-        for i in range(int(self._iLQR_max_iter)):
-            if i == 1:  # skip the compiling time
-                start_time = tm.time()
-            iter_start_time = tm.time()
-            C_matrix = self._obj_fun.eval_hessian_obj_fun(trajectory)
-            c_vector = self._obj_fun.eval_grad_obj_fun(trajectory)
-            F_matrix = self._nn_dynamic_model.eval_grad_dynamic_model(
-                trajectory)
-            F_matrix = gaussian_filter1d(
-                F_matrix, sigma=self._gaussian_filter_sigma, axis=0)
-            K_matrix, k_vector = self.backward_pass(
-                C_matrix, c_vector, F_matrix)
-            trajectory, C_matrix, c_vector, F_matrix, obj_val, isStop = self.forward_pass(
-                trajectory, K_matrix, k_vector)
-            if i < self._decay_rate_max_iters:
-                re_train_stopping_criterion = re_train_stopping_criterion * self._decay_rate
-            iter_end_time = tm.time()
-            iter_time = iter_end_time-iter_start_time
-            logger.info("[+ +] Iter.No.:%3d  Iter.Time:%.3e   Obj.Val.:%.5e" % (
-                i,               iter_time,       obj_val,))
-            result_obj_val[i] = obj_val
-            result_iter_time[i] = iter_time
-            if isStop:
-                if len(new_data) != 0:  # Ensure the optimal trajectroy being in the dataset
-                    trajectory_noisy = trajectory
+        start_time = tm.time()
+        total_iter_no = -1
+        for idx_j, j in enumerate(self._t):
+            if idx_j is not 0:  # update t parameter
+                add_param = self.get_obj_add_param()
+                add_param[:, -1] = j*np.ones((self.dynamic_model._T))
+                self.set_obj_add_param(add_param)
+            self.set_obj_fun_value(self._obj_fun.eval_obj_fun(trajectory))
+            for i in range(int(self._iLQR_max_iter)):   
+                total_iter_no += 1           
+                iter_start_time = tm.time()
+                C_matrix = self._obj_fun.eval_hessian_obj_fun(trajectory)
+                c_vector = self._obj_fun.eval_grad_obj_fun(trajectory)
+                F_matrix = self._nn_dynamic_model.eval_grad_dynamic_model(
+                    trajectory)
+                F_matrix = gaussian_filter1d(
+                    F_matrix, sigma=self._gaussian_filter_sigma, axis=0)
+                K_matrix, k_vector = self.backward_pass(
+                    C_matrix, c_vector, F_matrix)
+                trajectory, C_matrix, c_vector, F_matrix, _, isStop = self.forward_pass(
+                    trajectory, K_matrix, k_vector)
+                obj_val = self._real_obj_fun.eval_obj_fun(trajectory)
+                if total_iter_no < self._decay_rate_max_iters:
+                    re_train_stopping_criterion = re_train_stopping_criterion * self._decay_rate
+                iter_end_time = tm.time()
+                iter_time = iter_end_time-iter_start_time
+                logger.info("[+ +] Total.Iter.No.:%3d   Iter.No.:%3d   Iter.Time:%.3e   Obj.Val.:%.5e" % (
+                                          total_iter_no,       i,            iter_time,      obj_val,))
+                result_obj_val[idx_j * self._iLQR_max_iter + i] = obj_val
+                result_iter_time[idx_j * self._iLQR_max_iter + i] = iter_time
+                if isStop:
+                    if len(new_data) != 0:  # Ensure the optimal trajectroy being in the dataset
+                        trajectory_noisy = trajectory
+                    else:
+                        trajectory_noisy = self.dynamic_model.eval_traj(action_traj=(
+                            trajectory[:, self.dynamic_model.n:]+np.random.normal(0, self._gaussian_noise_sigma, [self.dynamic_model.T, self.dynamic_model.m, 1])))
+                    new_data += [trajectory_noisy]
+                    data = np.concatenate(
+                        new_data[-int(self._trial_no/5):])[:, :, 0]
+                    self._dataset_train.update_dataset(Data(state=data))
+                    logger.save_to_json(trajectory=trajectory.tolist(), trajectroy_noisy = trajectory_noisy.tolist())
+                    self._nn_dynamic_model.retrain(
+                        self._dataset_train, max_epoch=100000, stopping_criterion=re_train_stopping_criterion)
+                    new_data = []
                 else:
-                    trajectory_noisy = self.dynamic_model.eval_traj(action_traj=(
-                        trajectory[:, self.dynamic_model.n:]+np.random.normal(0, self._gaussian_noise_sigma, [self.dynamic_model.T, self.dynamic_model.m, 1])))
-                new_data += [trajectory_noisy]
-                data = np.concatenate(
-                    new_data[-int(self._trial_no/5):])[:, :, 0]
-                self._dataset_train.update_dataset(Data(state=data))
-                logger.save_to_json(trajectory=trajectory.tolist(), trajectroy_noisy = trajectory_noisy.tolist())
-                self._nn_dynamic_model.retrain(
-                    self._dataset_train, max_epoch=100000, stopping_criterion=re_train_stopping_criterion)
-                new_data = []
-            else:
-                new_data += [trajectory]
+                    new_data += [trajectory]
+            logger.info("[+ +] Complete One Inner Loop! The log barrier parameter t is %.5f" % (j) + " in this iteration!")
+            
         end_time = tm.time()
-        io.savemat(os.path.join(logger.logger_path,  "_result.mat"), {
-                   "obj_val": result_obj_val, "iter_time": result_iter_time})
+        io.savemat(os.path.join(logger.logger_path,  "_result.mat"), {"obj_val": result_obj_val, "iter_time": result_iter_time})
         logger.info("[+ +] Completed! All Time:%.5e" % (end_time-start_time))
 
     @property
