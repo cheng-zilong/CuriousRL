@@ -25,8 +25,8 @@ class RoboticArmTracking(DynamicModelBase):
         
         n, m = 6, 2 # number of state = 6, number of action = 2, prediction horizon = 500
         x_u_var = sp.symbols('x_u:8')
-        m1 = 0.1
-        m2 = 0.1
+        m1 = 1
+        m2 = 1
         self.l1 = 1
         self.l2 = 2
         g = 9.8
@@ -56,7 +56,7 @@ class RoboticArmTracking(DynamicModelBase):
         init_state = np.asarray([0, 0, 0, 0, 0, self.l1+self.l2],dtype=np.float64).reshape(-1,1)
         init_action = np.zeros((T,m,1))
         if is_with_constraints: 
-            constr = np.asarray([[-np.inf, np.inf], [-np.inf, np.inf], [-np.inf, np.inf], [-np.inf, np.inf], [-np.inf, np.inf], [-np.inf, np.inf], [-50, 50], [-50, 50]]) 
+            constr = np.asarray([[-np.inf, np.inf], [-np.inf, np.inf], [-np.inf, np.inf], [-np.inf, np.inf], [-np.inf, np.inf], [-np.inf, np.inf], [-100, 100], [-100, 100]]) 
             # other_constr = [-((x_u_var[4] - self._ellip_center[0])**2/(self._ellip_r[0]**2) + (x_u_var[5] - self._ellip_center[1])**2/(self._ellip_r[1]**2) - 1)]
             other_constr = []
         else:
@@ -66,8 +66,8 @@ class RoboticArmTracking(DynamicModelBase):
         position_var = sp.symbols("p:2") # x and y
         # add_param_obj = np.hstack([ np.vstack([-3*np.ones((int(int(T/4)), 1)), 0*np.ones((int(int(T/4)), 1)), 3*np.ones((int(int(T/4)), 1)), 0*np.ones((int(int(T/4)), 1))]),
         #                             np.vstack([0*np.sin(54/180)*np.ones((int(int(T/4)), 1)), -3*np.ones((int(int(T/4)), 1)), 0*np.ones((int(int(T/4)), 1)), 3*np.ones((int(int(T/4)), 1))])])
-        add_param_obj = np.hstack([ np.vstack([np.linspace(0, -3, int(T/4)).reshape(-1,1), np.linspace(-3, 0, int(T/4)).reshape(-1,1), np.linspace(0, 3, int(T/4)).reshape(-1,1),  np.linspace(3, 0, int(T/4)).reshape(-1,1)]),
-                                    np.vstack([np.linspace(3, 0, int(T/4)).reshape(-1,1),  np.linspace(0, -3, int(T/4)).reshape(-1,1), np.linspace(-3, 0, int(T/4)).reshape(-1,1), np.linspace(0, 3, int(T/4)).reshape(-1,1)])])
+        add_param_obj = np.hstack([ np.vstack([np.linspace(0, -2, int(T/4)).reshape(-1,1), np.linspace(-2, 0, int(T/4)).reshape(-1,1), np.linspace(0, 2, int(T/4)).reshape(-1,1),  np.linspace(2, 0, int(T/4)).reshape(-1,1)]),
+                                    np.vstack([np.linspace(3, 2, int(T/4)).reshape(-1,1),  np.linspace(2, 3, int(T/4)).reshape(-1,1), np.linspace(3, 2, int(T/4)).reshape(-1,1), np.linspace(2, 3, int(T/4)).reshape(-1,1)])])
         C_matrix =    np.diag([0.,       0.,     0.,         0.,          1.,                         1.,                           0.,              0.])
         r_vector = np.asarray([0.,       0.,     0.,         0.,          position_var[0],            position_var[1],              0.,              0.])
         runing_obj = (x_u_var - r_vector)@C_matrix@(x_u_var - r_vector) 
