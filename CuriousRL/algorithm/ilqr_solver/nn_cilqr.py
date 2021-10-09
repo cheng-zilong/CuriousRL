@@ -354,16 +354,10 @@ class NNiLQR(iLQRWrapper):
                 barrier_obj_fun += (-1/t_var)*sp.log(-(x_u_var[i] - c[1]))
         for other_constr in scenario._other_constr:
             barrier_obj_fun += (-1/t_var)*sp.log(-other_constr)
-        if scenario.add_param is None:
-            add_param = self._t[0] * \
-                np.ones((self.dynamic_model._T, 1), dtype=np.float64)
-        else:
-            add_param = np.hstack(
-                [scenario.add_param, self._t[0]*np.ones((self.dynamic_model._T, 1))])
         self._obj_fun = iLQRObjectiveFunction(obj_fun=barrier_obj_fun,
                                               x_u_var=x_u_var,
-                                              add_param_var=add_param_var,
-                                              add_param=add_param)
+                                              add_param_var=add_param_var)
+        self.set_obj_add_param(scenario.add_param)
 
         network = self._network_class(scenario.n + scenario.m, scenario.n)
         action_constr = scenario.box_constr[scenario.n:]
@@ -394,8 +388,8 @@ class NNiLQR(iLQRWrapper):
 
     def solve(self):
         trajectory = self._dynamic_model.eval_traj()  # init feasible trajectory
-        logger.info("[+ +] Initial Obj.Val.: %.5e" %
-                    (self._real_obj_fun.eval_obj_fun(trajectory)))
+        logger.info(f"[+ +] Init State: \n{self._dynamic_model._init_state}")
+        logger.info("[+ +] Initial Obj.Val.: %.5e" % (self._real_obj_fun.eval_obj_fun(trajectory)))
         new_data = []
         result_obj_val = np.zeros(self._iLQR_max_iter * len(self._t))
         result_iter_time = np.zeros(self._iLQR_max_iter  * len(self._t))
@@ -403,10 +397,7 @@ class NNiLQR(iLQRWrapper):
         start_time = tm.time()
         total_iter_no = -1
         for idx_j, j in enumerate(self._t):
-            if idx_j is not 0:  # update t parameter
-                add_param = self.get_obj_add_param()
-                add_param[:, -1] = j*np.ones((self.dynamic_model._T))
-                self.set_obj_add_param(add_param)
+            self.set_obj_add_param(t_index=idx_j)
             self.set_obj_fun_value(self._obj_fun.eval_obj_fun(trajectory))
             for i in range(int(self._iLQR_max_iter)):   
                 total_iter_no += 1           
@@ -459,3 +450,19 @@ class NNiLQR(iLQRWrapper):
     @property
     def dynamic_model(self) -> iLQRDynamicModel:
         return self._dynamic_model
+
+    def set_obj_add_param(self, new_add_param = None, t_index = None):
+        """Set the values of the additional parameters in the objective function
+
+        :param new_add_param: The new values to the additioanl variables
+        :type new_add_param: array(T, p)
+        """
+        t = self._t[0 if t_index is None else t_index]
+        if self._real_obj_fun._add_param is None:
+            add_param =  t * \
+                np.ones((self.dynamic_model._T, 1), dtype=np.float64)
+        else:
+            if new_add_param is not None:
+                self._real_obj_fun._add_param = new_add_param
+            add_param = np.hstack([self._real_obj_fun._add_param, t*np.ones((self.dynamic_model._T, 1))])
+        self._obj_fun._add_param = add_param
