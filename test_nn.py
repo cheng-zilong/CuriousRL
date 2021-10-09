@@ -40,8 +40,6 @@ import matplotlib.pyplot as plt
 #     scenario = CarParking() 
 #     scenario.play("CarParking_49")
 
-
-
 if __name__ == "__main__":
     for i in range(1,50):
         try:
@@ -58,17 +56,11 @@ if __name__ == "__main__":
     # scenario = CarParking() 
     # scenario.play("RoboticArmTracking_")
 
-
 # if __name__ == "__main__":
 #     logger.set_folder_name("RoboticArmTracking_", remove_existing_folder=False).set_is_use_logger(True).set_is_save_json(True)
-#     # scenario = VehicleTracking()
 #     scenario = RoboticArmTracking() 
-#     # basic_ilqr.BasiciLQR().init(scenario).solve() 
 #     log_barrier_ilqr.LogBarrieriLQR().init(scenario).solve() 
-#     # nn_ilqr.NNiLQR(gaussian_noise_sigma=[[0.01], [0.1]], iLQR_max_iter=100).init(scenario).solve() 
-#     # nn_cilqr.NNiLQR(gaussian_noise_sigma=[[0.1], [0.1]], iLQR_max_iter=100, training_stopping_criterion=0.01, decay_rate_max_iters=200).init(scenario).solve() 
-#     # scenario = RoboticArmTracking() 
-#     scenario.play("RoboticArmTracking_")
+#     scenario.play("RoboticArmTracking_log")
 
 
 # %%
