@@ -94,16 +94,10 @@ class LogBarrieriLQR(iLQRWrapper):
                 barrier_obj_fun += (-1/t_var)*sp.log(-(x_u_var[i] - c[1]))
         for other_constr in scenario._other_constr:
             barrier_obj_fun += (-1/t_var)*sp.log(-other_constr)
-        if scenario.add_param is None:
-            add_param = self._t[0] * \
-                np.ones((self.dynamic_model._T, 1), dtype=np.float64)
-        else:
-            add_param = np.hstack(
-                [scenario.add_param, self._t[0]*np.ones((self.dynamic_model._T, 1))])
         self._obj_fun = iLQRObjectiveFunction(obj_fun=barrier_obj_fun,
                                               x_u_var=x_u_var,
-                                              add_param_var=add_param_var,
-                                              add_param=add_param)
+                                              add_param_var=add_param_var)
+        self.set_obj_add_param(scenario.add_param)
         return self
 
     def solve(self):
@@ -111,6 +105,7 @@ class LogBarrieriLQR(iLQRWrapper):
         """
         # Initialize the trajectory, F_matrix, objective_function_value_last, C_matrix and c_vector
         self._trajectory = self.dynamic_model.eval_traj()  # init feasible trajectory
+        logger.info(f"[+ +] Init State: {self._dynamic_model._init_state}")
         C_matrix = self.obj_fun.eval_hessian_obj_fun(self._trajectory)
         c_vector = self.obj_fun.eval_grad_obj_fun(self._trajectory)
         F_matrix = self.dynamic_model.eval_grad_dynamic_model(
@@ -120,14 +115,11 @@ class LogBarrieriLQR(iLQRWrapper):
                     (self._real_obj_fun.eval_obj_fun(self._trajectory)))
         total_iter_no = -1
         for idx_j, j in enumerate(self._t):
-            if idx_j != 0:  # update t parameter
-                add_param = self.get_obj_add_param()
-                add_param[:, -1] = j*np.ones((self.dynamic_model._T))
-                self.set_obj_add_param(add_param)
+            self.set_obj_add_param(t_index=idx_j)
             self.set_obj_fun_value(self._obj_fun.eval_obj_fun(self._trajectory))
             for i in range(self._max_iter):
                 total_iter_no += 1
-                if j == self._t[0] and i == 1:  # skip the compiling time
+                if idx_j == 0 and i == 1:  # skip the compiling time
                     start_time = tm.time()
                 iter_start_time = tm.time()
                 K_matrix, k_vector = self.backward_pass(
@@ -156,3 +148,20 @@ class LogBarrieriLQR(iLQRWrapper):
     @property
     def dynamic_model(self) -> iLQRDynamicModel:
         return self._dynamic_model
+
+    def set_obj_add_param(self, new_add_param = None, t_index = None):
+        """Set the values of the additional parameters in the objective function
+
+        :param new_add_param: The new values to the additioanl variables
+        :type new_add_param: array(T, p)
+        """
+        t = self._t[0 if t_index is None else t_index]
+        if self._real_obj_fun._add_param is None:
+            add_param =  t * \
+                np.ones((self.dynamic_model._T, 1), dtype=np.float64)
+        else:
+            if new_add_param is not None:
+                self._real_obj_fun._add_param = new_add_param
+            add_param = np.hstack([self._real_obj_fun._add_param, t*np.ones((self.dynamic_model._T, 1))])
+        self._obj_fun._add_param = add_param
+        
