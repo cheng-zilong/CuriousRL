@@ -105,7 +105,7 @@ class LogBarrieriLQR(iLQRWrapper):
         """
         # Initialize the trajectory, F_matrix, objective_function_value_last, C_matrix and c_vector
         self._trajectory = self.dynamic_model.eval_traj()  # init feasible trajectory
-        logger.info(f"[+ +] Init State: {self._dynamic_model._init_state}")
+        logger.info(f"[+ +] Init State: \n{self._dynamic_model._init_state}")
         C_matrix = self.obj_fun.eval_hessian_obj_fun(self._trajectory)
         c_vector = self.obj_fun.eval_grad_obj_fun(self._trajectory)
         F_matrix = self.dynamic_model.eval_grad_dynamic_model(
