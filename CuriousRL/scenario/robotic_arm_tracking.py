@@ -67,7 +67,7 @@ class RoboticArmTracking(DynamicModelBase):
         # add_param_obj = np.hstack([ np.vstack([-3*np.ones((int(int(T/4)), 1)), 0*np.ones((int(int(T/4)), 1)), 3*np.ones((int(int(T/4)), 1)), 0*np.ones((int(int(T/4)), 1))]),
         #                             np.vstack([0*np.sin(54/180)*np.ones((int(int(T/4)), 1)), -3*np.ones((int(int(T/4)), 1)), 0*np.ones((int(int(T/4)), 1)), 3*np.ones((int(int(T/4)), 1))])])
         add_param_obj = np.hstack([ np.vstack([np.linspace(0, -1.5, int(T/4)).reshape(-1,1), np.linspace(-1.5, 0, int(T/4)).reshape(-1,1), np.linspace(0, 2, int(T/4)).reshape(-1,1),  np.linspace(1.5, 0, int(T/4)).reshape(-1,1)]),
-                                    np.vstack([np.linspace(3, 2, int(T/4)).reshape(-1,1),  np.linspace(2, 3, int(T/4)).reshape(-1,1), np.linspace(3, 2, int(T/4)).reshape(-1,1), np.linspace(2, 3, int(T/4)).reshape(-1,1)])])
+                                    np.vstack([np.linspace(3, 2.2, int(T/4)).reshape(-1,1),  np.linspace(2.2, 3, int(T/4)).reshape(-1,1), np.linspace(3, 2, int(T/4)).reshape(-1,1), np.linspace(2.2, 3, int(T/4)).reshape(-1,1)])])
         C_matrix =    np.diag([0.,       0.,     0.,         0.,          1.,                         1.,                           0.,              0.])
         r_vector = np.asarray([0.,       0.,     0.,         0.,          position_var[0],            position_var[1],              0.,              0.])
         runing_obj = (x_u_var - r_vector)@C_matrix@(x_u_var - r_vector) 

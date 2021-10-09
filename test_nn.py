@@ -54,14 +54,15 @@ import matplotlib.pyplot as plt
 #         except Exception as e:
 #             pass
 #         continue
-#     # scenario = CarParking() 
-#     # scenario.play("RoboticArmTracking_")
+#     # scenario = RoboticArmTracking() 
+#     # scenario.play("RoboticArmTracking_1")
 
-# if __name__ == "__main__":
-#     logger.set_folder_name("RoboticArmTracking_", remove_existing_folder=False).set_is_use_logger(True).set_is_save_json(True)
-#     scenario = RoboticArmTracking() 
-#     log_barrier_ilqr.LogBarrieriLQR().init(scenario).solve() 
-#     scenario.play("RoboticArmTracking_log")
+if __name__ == "__main__":
+    logger.set_folder_name("RoboticArmTracking_log", remove_existing_folder=False).set_is_use_logger(True).set_is_save_json(True)
+    scenario = RoboticArmTracking() 
+    log_barrier_ilqr.LogBarrieriLQR().init(scenario).solve() 
+    scenario.play("RoboticArmTracking_log")
+    plt.show()
 
 
 # %%
