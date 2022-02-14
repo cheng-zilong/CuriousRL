@@ -18,7 +18,7 @@ class QuadCopter(DynamicModelBase):
         # p_x p_y p_z
         # v_x v_y v_z
         # phi(6) theta(7) psi(8)
-        # omega_x omega_y omega_z·
+        # omega_x omega_y omega_z
         # f1 f2 f3 f4
         Jx = 0.0244
         Jy = 0.0244

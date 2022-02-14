@@ -12,7 +12,7 @@ class RoboticArmTracking(DynamicModelBase):
         x0: position_x, x1: position_y, x2: heading anglue, x3: velocity, x4: steering angle, x5: acceleration\\
         If is_with_constraints = True, then the steering angle is limited to [-0.5, 0.5], acceleration is limited to [-2, 2]
     """
-    def __init__(self, is_with_constraints = True, T = 100, x = 2, y = 3):
+    def __init__(self, is_with_constraints = True, T = 120, x = 2, y = 3):
         ##### Dynamic Function ########
         # x0: theta1 
         # x1: theta1 dot 
@@ -66,8 +66,22 @@ class RoboticArmTracking(DynamicModelBase):
         position_var = sp.symbols("p:2") # x and y
         # add_param_obj = np.hstack([ np.vstack([-3*np.ones((int(int(T/4)), 1)), 0*np.ones((int(int(T/4)), 1)), 3*np.ones((int(int(T/4)), 1)), 0*np.ones((int(int(T/4)), 1))]),
         #                             np.vstack([0*np.sin(54/180)*np.ones((int(int(T/4)), 1)), -3*np.ones((int(int(T/4)), 1)), 0*np.ones((int(int(T/4)), 1)), 3*np.ones((int(int(T/4)), 1))])])
-        add_param_obj = np.hstack([ np.vstack([np.linspace(0, -1.5, int(T/4)).reshape(-1,1), np.linspace(-1.5, 0, int(T/4)).reshape(-1,1), np.linspace(0, 2, int(T/4)).reshape(-1,1),  np.linspace(1.5, 0, int(T/4)).reshape(-1,1)]),
-                                    np.vstack([np.linspace(3, 2.2, int(T/4)).reshape(-1,1),  np.linspace(2.2, 3, int(T/4)).reshape(-1,1), np.linspace(3, 2, int(T/4)).reshape(-1,1), np.linspace(2.2, 3, int(T/4)).reshape(-1,1)])])
+        add_param_obj = np.hstack([ 
+            np.vstack([
+                np.linspace(0, -2, int(T/6)).reshape(-1,1), 
+                np.linspace(-2, -2, int(T/6)).reshape(-1,1), 
+                np.linspace(-2, 0, int(T/6)).reshape(-1,1), 
+                np.linspace(0, 2, int(T/6)).reshape(-1,1),  
+                np.linspace(2, 2, int(T/6)).reshape(-1,1),  
+                np.linspace(2, 0, int(T/6)).reshape(-1,1)]),
+            np.vstack([
+                np.linspace(3, 2, int(T/6)).reshape(-1,1),  
+                np.linspace(2, 2, int(T/6)).reshape(-1,1),  
+                np.linspace(2, 3, int(T/6)).reshape(-1,1), 
+                np.linspace(3, 2, int(T/6)).reshape(-1,1),
+                np.linspace(2, 2, int(T/6)).reshape(-1,1), 
+                np.linspace(2, 3, int(T/6)).reshape(-1,1)])
+            ])
         C_matrix =    np.diag([0.,       0.,     0.,         0.,          1.,                         1.,                           0.,              0.])
         r_vector = np.asarray([0.,       0.,     0.,         0.,          position_var[0],            position_var[1],              0.,              0.])
         runing_obj = (x_u_var - r_vector)@C_matrix@(x_u_var - r_vector) 
