@@ -1,13 +1,18 @@
 #%%
 from sympy.core import basic
 from CuriousRL.algorithm.ilqr_solver import log_barrier_ilqr, nn_cilqr, nn_ilqr, basic_ilqr
-from CuriousRL.scenario.vehicle_tracking import VehicleTracking, VehicleTrackingObs
+from CuriousRL.scenario.vehicle_tracking import VehicleTracking, VehicleTrackingObs, VehicleTrackingADMMiLQR1, VehicleTrackingADMMiLQR2, VehicleTrackingADMMiLQR3
 from CuriousRL.scenario.car_parking import CarParking
 from CuriousRL.scenario.quadcopter import QuadCopter
 from CuriousRL.scenario.robotic_arm_tracking import RoboticArmTracking
 from CuriousRL.utils.Logger import logger
 import matplotlib.pyplot as plt
 
+logger.set_folder_name("VehicleTrackingADMM3", remove_existing_folder=True).set_is_use_logger(True).set_is_save_json(True)
+scenario = VehicleTrackingADMMiLQR3()
+log_barrier_ilqr.LogBarrieriLQR().init(scenario).solve()
+scenario.play("VehicleTrackingADMM3")
+plt.show()
 # if __name__ == "__main__":
 # #     for i in range(1,50):
 # #         try:
@@ -45,24 +50,24 @@ import matplotlib.pyplot as plt
 #     log_barrier_ilqr.LogBarrieriLQR().init(scenario).solve() 
 #     scenario.play("CarParking_Log")
 
-if __name__ == "__main__":
-    # for i in range(1,500):
-    #     try:
-    #         logger.set_folder_name("RoboticArmTracking_v3_" + str(i), remove_existing_folder=False).set_is_use_logger(True).set_is_save_json(True)
-    #         scenario = RoboticArmTracking() 
-    #         nn_cilqr.NNiLQR(gaussian_noise_sigma=[[0.1], [0.1]], iLQR_max_iter=100, training_stopping_criterion=0.01, decay_rate_max_iters=200).init(scenario).solve() 
-    #     except Exception as e:
-    #         pass
-    #     continue
-    scenario = RoboticArmTracking() 
-    scenario.play("RoboticArmTracking_v3_79")
+# if __name__ == "__main__":
+#     # for i in range(1,500):
+#     #     try:
+#     #         logger.set_folder_name("RoboticArmTracking_v3_" + str(i), remove_existing_folder=False).set_is_use_logger(True).set_is_save_json(True)
+#     #         scenario = RoboticArmTracking() 
+#     #         nn_cilqr.NNiLQR(gaussian_noise_sigma=[[0.1], [0.1]], iLQR_max_iter=100, training_stopping_criterion=0.01, decay_rate_max_iters=200).init(scenario).solve() 
+#     #     except Exception as e:
+#     #         pass
+#     #     continue
+#     scenario = RoboticArmTracking() 
+#     scenario.play("RoboticArmTracking_v3_79")
 
-if __name__ == "__main__":
-    logger.set_folder_name("RoboticArmTracking_v2_log", remove_existing_folder=False).set_is_use_logger(True).set_is_save_json(True)
-    scenario = RoboticArmTracking() 
-    log_barrier_ilqr.LogBarrieriLQR().init(scenario).solve() 
-    scenario.play("RoboticArmTracking_v2_log")
-    plt.show()
+# if __name__ == "__main__":
+#     logger.set_folder_name("RoboticArmTracking_v2_log", remove_existing_folder=False).set_is_use_logger(True).set_is_save_json(True)
+#     scenario = RoboticArmTracking() 
+#     log_barrier_ilqr.LogBarrieriLQR().init(scenario).solve() 
+#     scenario.play("RoboticArmTracking_v2_log")
+#     plt.show()
 
 
 # %%
